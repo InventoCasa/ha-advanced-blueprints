@@ -27,7 +27,17 @@
         custom_components.pyscript.file.pv_excess_control: debug
   ```
 
-## Usage
-TODO
+## Configuration &  Usage
+### Initial Configuration
+- For each appliance which should be controlled, create a new automation based on the *PV Excess Optimizer* blueprint
+- After creating the automation, manually execute it once. This will send the chosen configuration parameters and sensors to the python module and start the optimizer in the background
+- The python module stays active in background, even if HA or the complete system is restarted
+
+### Update
+- To update the configuration, simply update the chosen parameters and values in your automation, which was created based on the blueprint.
+- After that, manually execute the automation once to send the changes to the python module
+### Deactivation
+- To deactivate the auto-control of a single appliance, simply deactivate the respective automation.
 
 ## Blueprint configuration parameters
+TODO

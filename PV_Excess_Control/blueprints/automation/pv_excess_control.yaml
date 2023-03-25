@@ -151,7 +151,9 @@ blueprint:
           unit_of_measurement: A
     actual_power:
       name: "Appliance actual power sensor"
-      description: "Sensor which contains the current power consumption of the appliance in watts. For wbec, you can create a mqtt sensor which subscribes to wbec/lp/1/power"
+      description: "Sensor which contains the current power consumption of the appliance in watts. For wbec, you can create a mqtt sensor which subscribes to wbec/lp/1/power
+      If this is left empty (not recommended), 'Appliance typical current draw' will be used instead."
+      default:
       selector:
         entity:
           domain: sensor

@@ -103,7 +103,6 @@ class PvExcessControl:
 
         # Make sure trigger method is only registered once
         if PvExcessControl.trigger is None:
-            log.debug(":(")
             PvExcessControl.trigger = self.trigger_factory()
         # Add self to class dict and sort by priority (highest to lowest)
         PvExcessControl.instances[self.automation_id] = {'instance': self, 'priority': self.appliance_priority}

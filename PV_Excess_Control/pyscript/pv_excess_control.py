@@ -103,7 +103,8 @@ class PvExcessControl:
 
         # Make sure trigger method is only registered once
         if PvExcessControl.trigger is None:
-            PvExcessControl.trigger = PvExcessControl.trigger_factory()
+            log.debug(":(")
+            PvExcessControl.trigger = self.trigger_factory()
         # Add self to class dict and sort by priority (highest to lowest)
         PvExcessControl.instances[self.automation_id] = {'instance': self, 'priority': self.appliance_priority}
         PvExcessControl.instances = dict(sorted(PvExcessControl.instances.items(), key=lambda item: item[1]['priority'], reverse=True))
@@ -114,8 +115,8 @@ class PvExcessControl:
         #                                                  'actual_power': self.actual_power
         #                                                  }
 
-    @classmethod
-    def trigger_factory(cls):
+
+    def trigger_factory(self):
         # trigger every minute between 06:00 and 23:00
         log.debug(f'Registering trigger method.')
 
@@ -194,7 +195,7 @@ class PvExcessControl:
                         defined_power = amps*230*inst.phases
 
                     # "restart" history by subtracting defined power from each history value within the specified time frame
-                    PvExcessControl._adjust_pwr_history(inst, -defined_power)
+                    self._adjust_pwr_history(inst, -defined_power)
 
 
             # ----------------------------------- go through each appliance (lowest prio to highest prio) ----------------------------------
@@ -260,11 +261,10 @@ class PvExcessControl:
                         # "restart" history by adding defined power to each history value within the specified time frame
                         PvExcessControl._adjust_pwr_history(inst, power_consumption)
 
-            return on_time
+        return on_time
 
 
-    @classmethod
-    def _adjust_pwr_history(cls, inst, value):
+    def _adjust_pwr_history(self, inst, value):
         log.debug(f'Export history: {PvExcessControl.export_history}')
         PvExcessControl.export_history[-inst.appliance_switch_interval:] = [max(0, x + value) for x in
                                                                             PvExcessControl.export_history[

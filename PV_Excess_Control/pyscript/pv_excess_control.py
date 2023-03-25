@@ -56,6 +56,9 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
 
 
 class PvExcessControl:
+    # TODO:
+    #  - What about other domains than switches? Enable use of other domains (e.g. light, ...)
+    #  - Format blueprint config entry description
     instances = {}
     trigger = None
     export_power = None
@@ -107,18 +110,11 @@ class PvExcessControl:
         # Add self to class dict and sort by priority (highest to lowest)
         PvExcessControl.instances[self.automation_id] = {'instance': self, 'priority': self.appliance_priority}
         PvExcessControl.instances = dict(sorted(PvExcessControl.instances.items(), key=lambda item: item[1]['priority'], reverse=True))
-
-        # TODO if above does not work, consider
-        # PvExcessControl.instances[self.automation_id] = {'trigger': self.trigger_factory(),
-        #                                                  'priority': self.appliance_priority,
-        #                                                  'actual_power': self.actual_power
-        #                                                  }
+        log.debug(f'[{self.appliance_switch} (Prio {self.appliance_priority})] Registered appliance.')
 
 
     def trigger_factory(self):
         # trigger every minute between 06:00 and 23:00
-        log.debug(f'Registering trigger method.')
-
         @time_trigger('cron(* 6-23 * * *)')
         def on_time():
             log.debug('Trigger method triggered')
@@ -189,7 +185,6 @@ class PvExcessControl:
 
                     # Dynamic current appliances
                     if inst.dynamic_current_appliance:
-                        # TODO A short sleep may be needed, if the appliance has just been turned on
                         excess_amps = round(avg_excess_power / (230*inst.phases), 1)
                         amps = max(inst.min_current, min(excess_amps, inst.max_current))
                         number.set_value(entity_id=inst.appliance_current_set_entity, value=amps)

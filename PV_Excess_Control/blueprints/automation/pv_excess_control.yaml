@@ -5,7 +5,7 @@ blueprint:
   input:
     automation_id:
       name: "Automation name"
-      description: "IMPORTANT: Input the name of this automation here. The name must be unique!"
+      description: "**[IMPORTANT]\nThis field must contain the same name you defined for this automation.\nThe name must be unique!**"
       selector:
         text:
     appliance_priority:
@@ -22,26 +22,26 @@ blueprint:
 
     export_power:
       name: "Export Power"
-      description: "Sensor which contains your current home export power in watts. Must not be negative! For best results, this sensor should be updated at least every minute. 
-      WARNING: This sensor must be the same for all your created automations based off this blueprint!"
+      description: "Sensor which contains your current **home export power** in watts.\nMust not be negative! For best results, this sensor should be updated at least every minute.\n\n 
+      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**"
       selector:
         entity:
           domain: sensor
           multiple: false
     pv_power:
       name: "PV Power"
-      description: "Sensor which contains your current PV generated power in watts. Must not be negative! For best results, this sensor should be updated at least every minute.
-      WARNING: This sensor must be the same for all your created automations based off this blueprint!"
+      description: "Sensor which contains your current **PV generated power** in watts.\nMust not be negative! For best results, this sensor should be updated at least every minute.\n\n
+      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**"
       selector:
         entity:
           domain: sensor
           multiple: false
     load_power:
       name: "Load Power"
-      description: "Sensor which contains your current load power (combined household appliance consumption without home battery charging consumption) in watts. Must not be negative! For best results, this sensor should be updated at least every minute.
-      WARNING: This sensor must be the same for all your created automations based off this blueprint!
-      NOTE: The combined household appliance consumption will always be prioritized, meaning that if you e.g. turn on your electric oven, and as a result the excess power is near zero, 
-      your appliance with the lowest priority will be switched off (according to its On/Off swithc interval)."
+      description: "Sensor which contains your current **load power** (*combined household appliance consumption without home battery charging consumption*) in watts. Must not be negative!\nFor best results, this sensor should be updated at least every minute.\n\n
+      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
+      **[NOTE]**\nThe combined household appliance consumption will always be prioritized, meaning that if you e.g. turn on your electric oven, and as a result the excess power is near zero, 
+      your appliance with the lowest priority will be switched off (according to its On/Off switch interval)."
       selector:
         entity:
           domain: sensor
@@ -50,15 +50,15 @@ blueprint:
 
     home_battery_level:
       name: "Home battery level"
-      description: "Sensor which represents the charge level of your home battery (in percent)
-      WARNING: This sensor must be the same for all your created automations based off this blueprint!"
+      description: "Sensor which represents the **charge level of your home battery** (in percent)\n\n
+      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**"
       selector:
         entity:
           domain: sensor
           multiple: false
     min_home_battery_level:
       name: "Minimum home battery level"
-      description: "Minimum power level (in percent) of your home battery, before starting to switch on your appliance. (If home_battery_level < min_home_battery_level: Export Power will be considered for appliance switching) (If home_battery_level >= min_home_battery_level: PV Power will be considered for appliance switching)"
+      description: "Minimum power level (in percent) of your home battery, before starting to switch on your appliance.\n(If `home_battery_level < min_home_battery_level` -> Export Power will be considered for appliance switching)\n(If `home_battery_level >= min_home_battery_level` -> PV Power will be considered for appliance switching)"
       default: 50
       selector:
         number:
@@ -70,15 +70,16 @@ blueprint:
 
     appliance_switch:
       name: "Appliance On/Off switch"
-      description: "Switch to turn the appliance on/off. For wbec, create a mqtt switch for wbec/lp/1/enable"
+      description: "Switch to turn the appliance on/off."
       selector:
         entity:
           domain: switch
           multiple: false
     appliance_switch_interval:
       name: "Appliance On/Off switch interval"
-      description: "Defines the minimum time (in minutes) before switching the appliance on/off again. Will also be used as the averaging interval for available excess power.
-      Note: When first creating and executing your automation, it will most likely take the here defined time till your appliance can switch on. Even if enough excess solar is available beforehand.
+      description: "Defines the minimum time (in minutes) before switching the appliance on/off again.\nWill also be used as the averaging interval for available excess power.\n\n
+      **[NOTE]**\n
+      When first creating and executing your automation, it will most likely take the here defined time till your appliance can switch on, even if enough excess solar is available beforehand.\n
       This is due to the excess_history getting populated with zeros at the beginning."
       default: 5
       selector:
@@ -91,19 +92,20 @@ blueprint:
 
     appliance_on_only:
       name: "Only-On-Appliance"
-      description: "Tick this box if your appliance should only be turned on, and never off. Useful e.g. for washing machines, which should not be turned off even if there is not enough solar power anymore."
+      description: "Tick this box if your appliance should only be turned on, but **never off**.\nUseful e.g. for washing machines, which should not be turned off even if there is not enough solar power anymore."
       default: False
       selector:
         boolean:
     dynamic_current_appliance:
       name: "Dynamic current control"
-      description: "Tick this box if your appliance supports different current levels. Useful e.g. for wallboxes. If False, the appliance will only be switched on or off in relation to the PV excess."
+      description: "Tick this box if your appliance supports different current levels.\nUseful e.g. for **wallboxes**.\nIf False, the appliance will only be switched on or off in relation to the PV excess."
       default: False
       selector:
         boolean:
     appliance_current_set_entity:
       name: "Appliance SetCurrent entity"
-      description: "[Only relevant when dynamic current control is set] The number entity to which the calculated current will be sent. For wbec, create a MQTT number entity which points to wbec/lp/1/maxcurrent"
+      description: "The number entity to which the calculated current will be sent.\n\n
+      **[NOTE]\nOnly relevant when dynamic current control is set!**\nLeave empty if *dynamic current control* is deactivated."
       default:
       selector:
         entity:
@@ -111,7 +113,8 @@ blueprint:
           multiple: false
     min_current:
       name: "Minimum dynamic current"
-      description: "[Only relevant when dynamic current control is set] Minimum current per phase your appliance can handle. Calculated values below this will be set to 0A."
+      description: "Minimum current per phase your appliance can handle.\n\n
+      **[NOTE]\nOnly relevant when dynamic current control is set!**\nLeave empty if *dynamic current control* is deactivated."
       default: 6
       selector:
         number:
@@ -121,7 +124,8 @@ blueprint:
           unit_of_measurement: A
     max_current:
       name: "Maximum dynamic current"
-      description: "[Only relevant when dynamic current control is set] Maximum current per phase your appliance can handle. Calculated values above this will be set to 16A."
+      description: "Maximum current per phase your appliance can handle.\n\n
+      **[NOTE]\nOnly relevant when dynamic current control is set!**\nLeave empty if *dynamic current control* is deactivated."
       default: 16
       selector:
         number:
@@ -131,7 +135,7 @@ blueprint:
           unit_of_measurement: A
     three_phase_appliance:
       name: "Three Phase Appliance"
-      description: "Tick this box if you have a three-phase appliance AND your appliance is configured for three-phase power use. Otherwise untick the box."
+      description: "Tick this box if you have a three-phase appliance **and** your appliance is configured for three-phase power use.\nOtherwise untick the box."
       default: False
       selector:
         boolean:
@@ -139,9 +143,8 @@ blueprint:
 
     defined_current:
       name: "Appliance typical current draw"
-      description: "Typical/expected current draw of your appliance. Only relevant for deciding how much excess is needed before turning the specific appliance on. 
-      If your appliance supports dynamic current setting, set this to the same value as 'Minimum dynamic current'.
-      Ampere = Watt/Volt"
+      description: "Typical/expected current draw of your appliance.\nRelevant for deciding how much excess is needed before turning the specific appliance on.\n 
+      If your appliance supports dynamic current setting, set the *typical current* to the same value as the *minimum dynamic current*."
       default: 6
       selector:
         number:
@@ -151,8 +154,8 @@ blueprint:
           unit_of_measurement: A
     actual_power:
       name: "Appliance actual power sensor"
-      description: "Sensor which contains the current power consumption of the appliance in watts. For wbec, you can create a mqtt sensor which subscribes to wbec/lp/1/power
-      If this is left empty (not recommended), 'Appliance typical current draw' will be used instead."
+      description: "Sensor which contains the **current power consumption** of the appliance in watts.\n
+      If this is left empty (not recommended), the *typical current draw* will be used instead."
       default:
       selector:
         entity:

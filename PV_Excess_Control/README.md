@@ -36,8 +36,12 @@
 ### Update
 - To update the configuration, simply update the chosen parameters and values in your automation, which was created based on the blueprint.
 - After that, manually execute the automation once to send the changes to the python module
+
 ### Deactivation
-- To deactivate the auto-control of a single appliance, simply deactivate the respective automation.
+- To deactivate the auto-control of a single appliance, simply deactivate the related automation.
+
+### Deletion
+- To remove the auto-control of a single appliance, simply delete the related automation.
 
 ## Blueprint configuration parameters
 TODO

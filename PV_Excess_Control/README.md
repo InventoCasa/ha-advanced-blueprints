@@ -1,5 +1,8 @@
 # PV Excess Control
-Automatically control your appliances (wallbox, heatpump, washing machine, ...) based on excess solar power
+Automatically control your appliances (wallbox, heatpump, washing machine, ...) based on excess solar power.
+
+If you like my work, you can support me here:\
+[<img src="https://user-images.githubusercontent.com/1286821/181085373-12eee197-187a-4438-90fe-571ac6d68900.png" alt="Buy me a coffee" width="200" />](https://buymeacoffee.com/henrikIC)
 
 ## Features
 :white_check_mark: Configurable priority handling between multiple appliances\
@@ -9,6 +12,7 @@ Automatically control your appliances (wallbox, heatpump, washing machine, ...) 
 :white_check_mark: Define min. and max. current for appliances supporting dynamic current control\
 :white_check_mark: Supports one- and three-phase appliances\
 :white_check_mark: Supports *Only-Switch-On* devices like washing machines or dishwashers
+
 
 ## Prerequisites
 - A working installation of [pyscript](https://github.com/custom-components/pyscript) (can be installed via [HACS](https://hacs.xyz/))
@@ -25,7 +29,7 @@ Automatically control your appliances (wallbox, heatpump, washing machine, ...) 
   - or via *`configuration.yaml`*:
     ```
     pyscript:
-        allow_all_imports: true
+      allow_all_imports: true
     ```
 
 ## Installation
@@ -35,12 +39,12 @@ Automatically control your appliances (wallbox, heatpump, washing machine, ...) 
   ```
   logger:
     logs:
-        custom_components.pyscript.file.pv_excess_control: debug
+      custom_components.pyscript.file.pv_excess_control: debug
   ```
 
 ## Configuration &  Usage
 ### Initial Configuration
-- For each appliance which should be controlled, create a new automation based on the *PV Excess Optimizer* blueprint
+- For each appliance which should be controlled, create a new automation based on the *PV Excess Control* blueprint
 - After creating the automation, manually execute it once. This will send the chosen configuration parameters and sensors to the python module and start the optimizer in the background
 - The python module stays active in background, even if HA or the complete system is restarted
 

@@ -206,7 +206,7 @@ class PvExcessControl:
                         excess_amps = round(avg_excess_power / (230*inst.phases), 1)
                         amps = max(inst.min_current, min(excess_amps, inst.max_current))
                         number.set_value(entity_id=inst.appliance_current_set_entity, value=amps)
-                        log.debug(f'{log_prefix} Setting dynamic current appliance to {amps} A per phase.')
+                        log.info(f'{log_prefix} Setting dynamic current appliance to {amps} A per phase.')
                         defined_power = amps*230*inst.phases
                         # "restart" history by subtracting defined power from each history value within the specified time frame
                         self._adjust_pwr_history(inst, -defined_power)
@@ -244,7 +244,7 @@ class PvExcessControl:
                         target_current = max(inst.min_current, actual_current+diff_current)
                         log.debug(f'{log_prefix} {actual_current=}A | {diff_current=}A | {target_current=}A')
                         if inst.min_current <= target_current < actual_current:
-                            log.debug(f'{log_prefix} Reducing dynamic current appliance from {actual_current} A to {target_current} A.')
+                            log.info(f'{log_prefix} Reducing dynamic current appliance from {actual_current} A to {target_current} A.')
                             number.set_value(entity_id=inst.appliance_current_set_entity, value=target_current)
                             # add released power consumption to next appliances in list
                             diff_power = (actual_current - target_current)*230*inst.phases

@@ -39,13 +39,25 @@ def _validate_number(num: Union[float, str]) -> Union[float, None]:
         return None
 
 
+def _replace_vowels(input: str) -> str:
+    """
+    Function to replace lowercase vowels in a string
+    :param input:   Input string
+    :return:        String with replaced vowels
+    """
+    vowel_replacement = {'ä': 'a', 'ö': 'o', 'ü': 'u'}
+    res = [vowel_replacement[v] if v in vowel_replacement else v for v in input]
+    return ''.join(res)
+
+
 @service
 def pv_excess_control(automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
                       min_home_battery_level, dynamic_current_appliance, three_phase_appliance, min_current,
                       max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                       actual_power, defined_current, appliance_on_only):
 
-    automation_id = f"automation.{automation_id.strip().replace(' ', '_').lower()}"
+    automation_id = _replace_vowels(f"automation.{automation_id.strip().replace(' ', '_').lower()}")
+
 
     class_instances[automation_id] = PvExcessControl(automation_id, appliance_priority, export_power, pv_power,
                                                      load_power, home_battery_level, min_home_battery_level,

@@ -53,6 +53,3 @@ Automatically control your appliances (wallbox, heatpump, washing machine, ...) 
 
 ### Deletion
 - To remove the auto-control of a single appliance, simply delete the related automation.
-
-## Blueprint configuration parameters
-TODO

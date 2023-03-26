@@ -110,14 +110,13 @@ class PvExcessControl:
         # Add self to class dict and sort by priority (highest to lowest)
         PvExcessControl.instances[self.automation_id] = {'instance': self, 'priority': self.appliance_priority}
         PvExcessControl.instances = dict(sorted(PvExcessControl.instances.items(), key=lambda item: item[1]['priority'], reverse=True))
-        log.debug(f'[{self.appliance_switch} (Prio {self.appliance_priority})] Registered appliance.')
+        log.info(f'[{self.appliance_switch} (Prio {self.appliance_priority})] Registered appliance.')
 
 
     def trigger_factory(self):
         # trigger every minute between 06:00 and 23:00
         @time_trigger('cron(* 6-23 * * *)')
         def on_time():
-            log.debug('Trigger method triggered')
             # ----------------------------------- get the current export / pv excess -----------------------------------
             if len(PvExcessControl.export_history) >= 60:
                 PvExcessControl.export_history.pop(0)
@@ -134,13 +133,20 @@ class PvExcessControl:
             # ----------------------------------- go through each appliance (highest prio to lowest) ---------------------------------------
             # this is for determining which devices can be switched on
             instances = []
-            for e in PvExcessControl.instances.values():
+            for a_id, e in PvExcessControl.instances.copy().items():
                 inst = e['instance']
                 inst.switch_interval_counter += 1
                 log_prefix = f'[{inst.appliance_switch} (Prio {inst.appliance_priority})]'
+
                 # Check if automation is activated
-                if not _get_state(inst.automation_id) == 'on':
-                    log.debug(f'{log_prefix} Doing nothing, because automation is not activated.')
+                automation_state = _get_state(inst.automation_id)
+                if automation_state == 'off':
+                    log.debug(f'{log_prefix} Doing nothing, because automation is not activated: State is {automation_state}.')
+                    continue
+
+                elif automation_state is None:
+                    log.info(f'{log_prefix} Automation "{a_id}" was deleted. Removing related class instance.')
+                    del PvExcessControl.instances[a_id]
                     continue
 
                 # check min bat lvl and decide whether to regard export power or solar power minus load power
@@ -175,7 +181,7 @@ class PvExcessControl:
                         if inst.switch_interval_counter >= inst.appliance_switch_interval:
                             switch.turn_on(entity_id=inst.appliance_switch)
                             inst.switch_interval_counter = 0
-                            log.debug(f'{log_prefix} Switched on appliance.')
+                            log.info(f'{log_prefix} Switched on appliance.')
                             # "restart" history by subtracting defined power from each history value within the specified time frame
                             self._adjust_pwr_history(inst, -defined_power)
                             task.sleep(1)
@@ -255,7 +261,7 @@ class PvExcessControl:
                         log.debug(f'{log_prefix} Current power consumption: {power_consumption} W')
                         # switch off appliance
                         switch.turn_off(entity_id=inst.appliance_switch)
-                        log.debug(f'{log_prefix} Switched off appliance.')
+                        log.info(f'{log_prefix} Switched off appliance.')
                         task.sleep(1)
                         inst.switch_interval_counter = 0
                         # add released power consumption to next appliances in list

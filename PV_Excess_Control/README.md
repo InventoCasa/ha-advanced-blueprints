@@ -1,4 +1,14 @@
 # PV Excess Control
+Automatically control your appliances (wallbox, heatpump, washing machine, ...) based on excess solar power
+
+## Features
+:white_check_mark: Configurable priority handling between multiple appliances\
+:white_check_mark: Define a *minimum home battery level* before directing PV excess to your specific appliance\
+:white_check_mark: Define an *On/Off switch interval* / solar power averaging interval\
+:white_check_mark: Supports dynamic current control (e.g. for wallboxes)\
+:white_check_mark: Define min. and max. current for appliances supporting dynamic current control\
+:white_check_mark: Supports one- and three-phase appliances\
+:white_check_mark: Supports *Only-Switch-On* devices like washing machines or dishwashers
 
 ## Prerequisites
 - A working installation of [pyscript](https://github.com/custom-components/pyscript) (can be installed via [HACS](https://hacs.xyz/))
@@ -19,7 +29,8 @@
     ```
 
 ## Installation
-- Copy both folders to your HA config directory, or manually place the automation blueprint **`pv_excess_control.yaml`** and the python module **`pv_excess_control.py`** into their respective folders.
+- Download (or clone) this GitHub repository
+- Copy both folders (*blueprints* and *pyscript*) to your HA config directory, or manually place the automation blueprint **`pv_excess_control.yaml`** and the python module **`pv_excess_control.py`** into their respective folders.
 - Configure the desired logging level in your *`configuration.yaml`*:
   ```
   logger:

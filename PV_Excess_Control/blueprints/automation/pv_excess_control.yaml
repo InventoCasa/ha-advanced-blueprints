@@ -51,14 +51,18 @@ blueprint:
     home_battery_level:
       name: "Home battery level"
       description: "Sensor which represents the **charge level of your home battery** (in percent)\n\n
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**"
+      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
+      **[NOTE]**\nIf your solar system is not coupled with a battery, leave this field empty"
+      default:
       selector:
         entity:
           domain: sensor
           multiple: false
     min_home_battery_level:
       name: "Minimum home battery level"
-      description: "Minimum power level (in percent) of your home battery, before starting to switch on your appliance.\n(If `home_battery_level < min_home_battery_level` -> Export Power will be considered for appliance switching)\n(If `home_battery_level >= min_home_battery_level` -> PV Power will be considered for appliance switching)"
+      description: "Minimum power level (in percent) of your home battery, before starting to switch on your appliance.\n(If `home_battery_level < min_home_battery_level` -> Export Power will be considered for appliance switching)\n
+      (If `home_battery_level >= min_home_battery_level` -> PV Power will be considered for appliance switching)\n\n
+      **[NOTE]**\nOnly relevant if your solar system is coupled with a battery."
       default: 50
       selector:
         number:

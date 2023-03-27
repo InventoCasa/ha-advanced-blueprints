@@ -162,11 +162,15 @@ class PvExcessControl:
                     continue
 
                 # check min bat lvl and decide whether to regard export power or solar power minus load power
-                if _get_num_state(inst.home_battery_level) >= inst.min_home_battery_level:
+                if inst.home_battery_level is None:
+                    home_battery_level = 100
+                else:
+                    home_battery_level = _get_num_state(inst.home_battery_level)
+                if home_battery_level >= inst.min_home_battery_level:
                     # home battery charge is high enough to direct solar power to appliances, if solar power is higher than load power
                     # calc avg based on pv excess (solar power - load power) according to specified window
                     avg_excess_power = int(sum(PvExcessControl.pv_history[-inst.appliance_switch_interval:]) / inst.appliance_switch_interval)
-                    log.debug(f'{log_prefix} Home battery charge is sufficient ({_get_num_state(inst.home_battery_level)}/{inst.min_home_battery_level} %). '
+                    log.debug(f'{log_prefix} Home battery charge is sufficient ({home_battery_level}/{inst.min_home_battery_level} %). '
                               f'Calculated average excess power based on >> solar power - load power <<: {avg_excess_power} W')
 
                 else:
@@ -174,7 +178,7 @@ class PvExcessControl:
                     # exported to the grid) for appliance
                     # calc avg based on export power history according to specified window
                     avg_excess_power = int(sum(PvExcessControl.export_history[-inst.appliance_switch_interval:]) / inst.appliance_switch_interval)
-                    log.debug(f'{log_prefix} Home battery charge is not sufficient ({_get_num_state(inst.home_battery_level)}/{inst.min_home_battery_level} %). '
+                    log.debug(f'{log_prefix} Home battery charge is not sufficient ({home_battery_level}/{inst.min_home_battery_level} %). '
                               f'Calculated average excess power based on >> export power <<: {avg_excess_power} W')
 
                 # add instance including calculated excess power to inverted list (priority from low to high)

@@ -20,6 +20,18 @@ blueprint:
           unit_of_measurement: "Priority level"
 
 
+    grid_voltage:
+      name: "Mains Voltage"
+      description: "The voltage of your household electrical grid (**not** your appliance!).\nTypically 230V for most of EU, 110V for US.\n\n 
+      **[WARNING]\nThis value must be the same for all your created automations based on this blueprint!**"
+      default: 230
+      selector:
+        number:
+          min: 110
+          max: 240
+          mode: box
+          unit_of_measurement: "V"
+
     export_power:
       name: "Export Power"
       description: "Sensor which contains your current **home export power** in watts.\nMust not be negative! For best results, this sensor should be updated at least every minute.\n\n 
@@ -194,3 +206,4 @@ action:
       actual_power: !input actual_power
       defined_current: !input defined_current
       appliance_on_only: !input appliance_on_only
+      grid_voltage: !input grid_voltage

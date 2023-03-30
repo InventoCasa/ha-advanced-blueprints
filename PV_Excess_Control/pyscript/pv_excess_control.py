@@ -202,9 +202,9 @@ class PvExcessControl:
                         if amps > prev_amps:
                             number.set_value(entity_id=inst.appliance_current_set_entity, value=amps)
                             log.info(f'{log_prefix} Setting dynamic current appliance from {prev_amps} to {amps} A per phase.')
-                        diff_power = (amps-prev_amps) * PvExcessControl.grid_voltage * inst.phases
-                        # "restart" history by subtracting power difference from each history value within the specified time frame
-                        self._adjust_pwr_history(inst, -diff_power)
+                            diff_power = (amps-prev_amps) * PvExcessControl.grid_voltage * inst.phases
+                            # "restart" history by subtracting power difference from each history value within the specified time frame
+                            self._adjust_pwr_history(inst, -diff_power)
 
                 else:
                     # check if appliance can be switched on

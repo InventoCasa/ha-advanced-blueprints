@@ -73,6 +73,7 @@ class PvExcessControl:
     # TODO:
     #  - What about other domains than switches? Enable use of other domains (e.g. light, ...)
     #  - Make min_excess_power configurable via blueprint
+    #  - Implement updating of pv sensors history more often. E.g. every 10secs, and averaging + adding to history every minute.
     instances = {}
     trigger = None
     export_power = None
@@ -198,11 +199,12 @@ class PvExcessControl:
                         excess_amps = round(avg_excess_power / (PvExcessControl.grid_voltage * inst.phases), 1)
                         prev_amps = _get_num_state(inst.appliance_current_set_entity, return_on_error=inst.min_current)
                         amps = max(inst.min_current, min(excess_amps, inst.max_current))
-                        number.set_value(entity_id=inst.appliance_current_set_entity, value=amps)
-                        log.info(f'{log_prefix} Setting dynamic current appliance from {prev_amps} to {amps} A per phase.')
-                        diff_power = (amps-prev_amps) * PvExcessControl.grid_voltage * inst.phases
-                        # "restart" history by subtracting power difference from each history value within the specified time frame
-                        self._adjust_pwr_history(inst, -diff_power)
+                        if amps > prev_amps:
+                            number.set_value(entity_id=inst.appliance_current_set_entity, value=amps)
+                            log.info(f'{log_prefix} Setting dynamic current appliance from {prev_amps} to {amps} A per phase.')
+                            diff_power = (amps-prev_amps) * PvExcessControl.grid_voltage * inst.phases
+                            # "restart" history by subtracting power difference from each history value within the specified time frame
+                            self._adjust_pwr_history(inst, -diff_power)
 
                 else:
                     # check if appliance can be switched on
@@ -265,7 +267,10 @@ class PvExcessControl:
                                 # "restart" history by adding defined power to each history value within the specified time frame
                                 self._adjust_pwr_history(inst, diff_power)
                             else:
-                                # current cannot be reduced, turn off appliance
+                                # current cannot be reduced
+                                # set current to 0
+                                number.set_value(entity_id=inst.appliance_current_set_entity, value=0)
+                                # turn off appliance
                                 power_consumption = self.switch_off(inst, log_prefix)
                                 if power_consumption != 0:
                                     prev_consumption_sum += power_consumption

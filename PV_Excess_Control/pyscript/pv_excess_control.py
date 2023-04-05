@@ -196,10 +196,10 @@ class PvExcessControl:
                     log.debug(f'{log_prefix} Appliance is already switched on.')
                     if avg_excess_power >= PvExcessControl.min_excess_power and inst.dynamic_current_appliance:
                         # try to increase dynamic current, because excess solar power is available
-                        excess_amps = round(avg_excess_power / (PvExcessControl.grid_voltage * inst.phases), 1)
                         prev_amps = _get_num_state(inst.appliance_current_set_entity, return_on_error=inst.min_current)
+                        excess_amps = round(avg_excess_power / (PvExcessControl.grid_voltage * inst.phases), 1) + prev_amps
                         amps = max(inst.min_current, min(excess_amps, inst.max_current))
-                        if amps > prev_amps:
+                        if amps > (prev_amps+0.09):
                             number.set_value(entity_id=inst.appliance_current_set_entity, value=amps)
                             log.info(f'{log_prefix} Setting dynamic current appliance from {prev_amps} to {amps} A per phase.')
                             diff_power = (amps-prev_amps) * PvExcessControl.grid_voltage * inst.phases

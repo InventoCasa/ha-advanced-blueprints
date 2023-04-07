@@ -5,7 +5,8 @@ blueprint:
   input:
     automation_id:
       name: "Automation name"
-      description: "**[IMPORTANT]\nThis field must contain the same name you defined for this automation.\nThe name must be unique!**"
+      description: "**[IMPORTANT]\nThis field must contain the same name/entity_id you defined for this automation.\nThe name must be unique!\nYou can check your automation entity ID by clicking 
+      on the three dots in the top right corner of your automation editor and selecting *info -> settings*. **"
       selector:
         text:
     appliance_priority:
@@ -32,14 +33,6 @@ blueprint:
           mode: box
           unit_of_measurement: "V"
 
-    export_power:
-      name: "Export Power"
-      description: "Sensor which contains your current **home export power** in watts.\nMust not be negative! For best results, this sensor should be updated at least every minute.\n\n 
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**"
-      selector:
-        entity:
-          domain: sensor
-          multiple: false
     pv_power:
       name: "PV Power"
       description: "Sensor which contains your current **PV generated power** in watts.\nMust not be negative! For best results, this sensor should be updated at least every minute.\n\n
@@ -48,12 +41,36 @@ blueprint:
         entity:
           domain: sensor
           multiple: false
+    export_power:
+      name: "Export Power"
+      description: "Sensor which contains your current **export power to the grid** in watts.\nMust not be negative! For best results, this sensor should be updated at least every minute.\n\n 
+      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
+      **[NOTE]**\nIf you can't measure this value directly, leave this field empty and provide a combined import/export power sensor."
+      default:
+      selector:
+        entity:
+          domain: sensor
+          multiple: false
+
     load_power:
       name: "Load Power"
       description: "Sensor which contains your current **load power** (*combined household appliance consumption without home battery charging consumption*) in watts. Must not be negative!\nFor best results, this sensor should be updated at least every minute.\n\n
       **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
-      **[NOTE]**\nThe combined household appliance consumption will always be prioritized, meaning that if you e.g. turn on your electric oven, and as a result the excess power is near zero, 
+      **[NOTE]**\nIf you can't measure this value directly, leave this field empty and provide a combined import/export power sensor.\n
+      The combined household appliance consumption will always be prioritized, meaning that if you e.g. turn on your electric oven, and as a result the excess power is near zero, 
       your appliance with the lowest priority will be switched off (according to its On/Off switch interval)."
+      default:
+      selector:
+        entity:
+          domain: sensor
+          multiple: false
+
+    import_export_power:
+      name: "Combined Import/Export Power"
+      description: "Sensor which contains **both**, your current **import power from the grid** (*positive* values) and your current **export power to the grid** in watts (*negative* values).\nFor best results, this sensor should be updated at least every minute.\n\n 
+      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\nThis sensor must be specified **only when you cannot provide both the *Export Power* and *Load Power* sensor.** This is normally the case when you have a standard inverter without battery.\n\n
+      **[NOTE]**\nThis is typically the value your household energy meter shows."
+      default:
       selector:
         entity:
           domain: sensor
@@ -207,3 +224,4 @@ action:
       defined_current: !input defined_current
       appliance_on_only: !input appliance_on_only
       grid_voltage: !input grid_voltage
+      import_export_power: !input import_export_power

@@ -289,8 +289,6 @@ class PvExcessControl:
                                 self._adjust_pwr_history(inst, diff_power)
                             else:
                                 # current cannot be reduced
-                                # set current to 0
-                                number.set_value(entity_id=inst.appliance_current_set_entity, value=0)
                                 # turn off appliance
                                 power_consumption = self.switch_off(inst, log_prefix)
                                 if power_consumption != 0:
@@ -357,6 +355,8 @@ class PvExcessControl:
             else:
                 power_consumption = _get_num_state(inst.actual_power)
             log.debug(f'{log_prefix} Current power consumption: {power_consumption} W')
+            # set current to 0
+            number.set_value(entity_id=inst.appliance_current_set_entity, value=0)
             # switch off appliance
             switch.turn_off(entity_id=inst.appliance_switch)
             log.info(f'{log_prefix} Switched off appliance.')

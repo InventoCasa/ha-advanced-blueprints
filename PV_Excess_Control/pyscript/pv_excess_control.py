@@ -371,11 +371,9 @@ class PvExcessControl:
         log.debug(f'Adjusting power history by {value}.')
         log.debug(f'Export history: {PvExcessControl.export_history}')
         PvExcessControl.export_history[-inst.appliance_switch_interval:] = [max(0, x + value) for x in
-                                                                            PvExcessControl.export_history[
-                                                                            -inst.appliance_switch_interval:]]
+                                                                            PvExcessControl.export_history[-inst.appliance_switch_interval:]]
         log.debug(f'Adjusted export history: {PvExcessControl.export_history}')
         log.debug(f'PV Excess (solar power - load power) history: {PvExcessControl.pv_history}')
-        PvExcessControl.pv_history[-inst.appliance_switch_interval:] = [max(0, x + value) for x in
-                                                                        PvExcessControl.pv_history[
-                                                                        -inst.appliance_switch_interval:]]
+        PvExcessControl.pv_history[-inst.appliance_switch_interval:] = [x + value for x in
+                                                                        PvExcessControl.pv_history[-inst.appliance_switch_interval:]]
         log.debug(f'Adjusted PV Excess (solar power - load power) history: {PvExcessControl.pv_history}')

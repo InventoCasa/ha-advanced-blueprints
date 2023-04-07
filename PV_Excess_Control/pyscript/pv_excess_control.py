@@ -138,8 +138,13 @@ class PvExcessControl:
                 PvExcessControl.export_history.pop(0)
             if len(PvExcessControl.pv_history) >= 60:
                 PvExcessControl.pv_history.pop(0)
+
             try:
-                PvExcessControl.export_history.append(_get_num_state(PvExcessControl.export_power))
+                if PvExcessControl.export_power is None:
+                    export_pwr = 0
+                else:
+                    export_pwr = _get_num_state(PvExcessControl.export_power)
+                PvExcessControl.export_history.append(export_pwr)
                 PvExcessControl.pv_history.append(_get_num_state(PvExcessControl.pv_power) - _get_num_state(PvExcessControl.load_power))
             except Exception as e:
                 log.error(f'Could not update Export/PV history!: {e}')

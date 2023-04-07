@@ -34,8 +34,10 @@ blueprint:
 
     export_power:
       name: "Export Power"
-      description: "Sensor which contains your current **home export power** in watts.\nMust not be negative! For best results, this sensor should be updated at least every minute.\n\n 
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**"
+      description: "Sensor which contains your current **export power to the grid** in watts.\nMust not be negative! For best results, this sensor should be updated at least every minute.\n\n 
+      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
+      **[NOTE]**\nIf you don't have a home battery, you can leave this field empty."
+      default:
       selector:
         entity:
           domain: sensor

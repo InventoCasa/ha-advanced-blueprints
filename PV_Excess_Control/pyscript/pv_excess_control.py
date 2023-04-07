@@ -32,9 +32,13 @@ def _validate_number(num: Union[float, str], return_on_error: Union[float, None]
     :param return_on_error: Value to return in case of error
     :return:                Number if valid, else None
     """
+    min_v = -1000000
+    max_v = 1000000
     try:
-        if 0 <= float(num) <= 1000000:
+        if min_v <= float(num) <= max_v:
             return float(num)
+        else:
+            raise Exception(f'{float(num)} not in range: [{min_v}, {max_v}]')
     except Exception as e:
         log.error(f'{num=} is not a valid number between 0 and 1000000: {e}')
         return return_on_error
@@ -55,7 +59,7 @@ def _replace_vowels(input: str) -> str:
 def pv_excess_control(automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
                       min_home_battery_level, dynamic_current_appliance, three_phase_appliance, min_current,
                       max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
-                      actual_power, defined_current, appliance_on_only, grid_voltage):
+                      actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power):
 
     automation_id = _replace_vowels(f"automation.{automation_id.strip().replace(' ', '_').lower()}")
 
@@ -65,7 +69,7 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
                                                      dynamic_current_appliance, three_phase_appliance, min_current,
                                                      max_current, appliance_switch, appliance_switch_interval,
                                                      appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
-                                                     grid_voltage)
+                                                     grid_voltage, import_export_power)
 
 
 
@@ -81,6 +85,7 @@ class PvExcessControl:
     load_power = None
     home_battery_level = None
     grid_voltage = None
+    import_export_power = None
     # Exported Power history
     export_history = [0]*60
     # PV Excess history (PV power minus load power)
@@ -94,7 +99,7 @@ class PvExcessControl:
     def __init__(self, automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
                  min_home_battery_level, dynamic_current_appliance, three_phase_appliance, min_current,
                  max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
-                 actual_power, defined_current, appliance_on_only, grid_voltage):
+                 actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power):
         self.automation_id = automation_id
         self.appliance_priority = int(appliance_priority)
         PvExcessControl.export_power = export_power
@@ -102,6 +107,7 @@ class PvExcessControl:
         PvExcessControl.load_power = load_power
         PvExcessControl.home_battery_level = home_battery_level
         PvExcessControl.grid_voltage = grid_voltage
+        PvExcessControl.import_export_power = import_export_power
         self.min_home_battery_level = float(min_home_battery_level)
         self.dynamic_current_appliance = bool(dynamic_current_appliance)
         self.min_current = float(min_current)
@@ -133,6 +139,8 @@ class PvExcessControl:
         # trigger every minute between 06:00 and 23:00
         @time_trigger('cron(* 6-23 * * *)')
         def on_time():
+            if not self.sanity_check():
+                return on_time
             # ----------------------------------- get the current export / pv excess -----------------------------------
             if len(PvExcessControl.export_history) >= 60:
                 PvExcessControl.export_history.pop(0)
@@ -140,14 +148,22 @@ class PvExcessControl:
                 PvExcessControl.pv_history.pop(0)
 
             try:
-                if PvExcessControl.export_power is None:
-                    export_pwr = 0
+                if PvExcessControl.import_export_power:
+                    # Calc values based on combined import/export power sensor
+                    import_export = int(_get_num_state(PvExcessControl.import_export_power))
+                    # load_pwr = pv_pwr + import_export
+                    export_pwr = abs(min(0, import_export))
+                    excess_pwr = -import_export
                 else:
-                    export_pwr = _get_num_state(PvExcessControl.export_power)
-                PvExcessControl.export_history.append(export_pwr)
-                PvExcessControl.pv_history.append(_get_num_state(PvExcessControl.pv_power) - _get_num_state(PvExcessControl.load_power))
+                    # Calc values based on separate sensors
+                    export_pwr = int(_get_num_state(PvExcessControl.export_power))
+                    excess_pwr = int(_get_num_state(PvExcessControl.pv_power) - _get_num_state(PvExcessControl.load_power))
             except Exception as e:
                 log.error(f'Could not update Export/PV history!: {e}')
+            else:
+                PvExcessControl.export_history.append(export_pwr)
+                PvExcessControl.pv_history.append(excess_pwr)
+
             log.debug(f'PV Excess (PV Power - Load Power) History: {PvExcessControl.pv_history}')
             log.debug(f'Export History: {PvExcessControl.export_history}')
 
@@ -298,13 +314,31 @@ class PvExcessControl:
                     if _get_state(inst.appliance_switch) != 'off':
                         log.warning(f'{log_prefix} Appliance state (={_get_state(inst.appliance_switch)}) is neither ON nor OFF. '
                                     f'Assuming OFF state.')
+                    # Note: This can misfire right after an appliance has been switched on. Generally no problem.
                     log.debug(f'{log_prefix} Appliance is already switched off.')
                 # -------------------------------------------------------------------
 
         return on_time
 
 
-    def switch_off(self, inst, log_prefix):
+    def sanity_check(self) -> bool:
+        if PvExcessControl.import_export_power is not None and PvExcessControl.home_battery_level is not None:
+            log.warning('"Import/Export power" has been defined together with "Home Battery". This is not intended and will to always '
+                        'giving the home battery priority over appliances, regardless of the specified min. battery level.')
+            return True
+        if PvExcessControl.import_export_power is not None and (PvExcessControl.export_power is not None or
+                                                                PvExcessControl.load_power is not None):
+            log.error('"Import/Export power" has been defined together with either "Export power" or "Load power". This is not '
+                      'allowed. Please specify either "Import/Export power" or both "Load power" & "Export Power".')
+            return False
+        if not (PvExcessControl.import_export_power is not None or (PvExcessControl.export_power is not None and
+                                                                    PvExcessControl.load_power is not None)):
+            log.error('Either "Export power" or "Load power" have not been defined. This is not '
+                      'allowed. Please specify either "Import/Export power" or both "Load power" & "Export Power".')
+            return False
+        return True
+
+    def switch_off(self, inst, log_prefix) -> float:
         # Try to switch off appliance
         # Do not turn off only-on-appliances
         if inst.appliance_on_only:

@@ -59,7 +59,8 @@ def _replace_vowels(input: str) -> str:
 def pv_excess_control(automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
                       min_home_battery_level, dynamic_current_appliance, three_phase_appliance, min_current,
                       max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
-                      actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power):
+                      actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
+                      home_battery_capacity, solar_production_forecast):
 
     automation_id = _replace_vowels(f"automation.{automation_id.strip().replace(' ', '_').lower()}")
 
@@ -69,7 +70,7 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
                                                      dynamic_current_appliance, three_phase_appliance, min_current,
                                                      max_current, appliance_switch, appliance_switch_interval,
                                                      appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
-                                                     grid_voltage, import_export_power)
+                                                     grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast)
 
 
 
@@ -86,6 +87,9 @@ class PvExcessControl:
     home_battery_level = None
     grid_voltage = None
     import_export_power = None
+    home_battery_capacity = None
+    solar_production_forecast = None
+    min_home_battery_level = None
     # Exported Power history
     export_history = [0]*60
     # PV Excess history (PV power minus load power)
@@ -99,7 +103,8 @@ class PvExcessControl:
     def __init__(self, automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
                  min_home_battery_level, dynamic_current_appliance, three_phase_appliance, min_current,
                  max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
-                 actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power):
+                 actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
+                 home_battery_capacity, solar_production_forecast):
         self.automation_id = automation_id
         self.appliance_priority = int(appliance_priority)
         PvExcessControl.export_power = export_power
@@ -108,7 +113,9 @@ class PvExcessControl:
         PvExcessControl.home_battery_level = home_battery_level
         PvExcessControl.grid_voltage = grid_voltage
         PvExcessControl.import_export_power = import_export_power
-        self.min_home_battery_level = float(min_home_battery_level)
+        PvExcessControl.home_battery_capacity = home_battery_capacity
+        PvExcessControl.solar_production_forecast = solar_production_forecast
+        PvExcessControl.min_home_battery_level = float(min_home_battery_level)
         self.dynamic_current_appliance = bool(dynamic_current_appliance)
         self.min_current = float(min_current)
         self.max_current = float(max_current)
@@ -125,6 +132,7 @@ class PvExcessControl:
             self.phases = 1
 
         self.switch_interval_counter = 0
+        self.log_prefix = f'[{self.appliance_switch} (Prio {self.appliance_priority})]'
 
         # Make sure trigger method is only registered once
         if PvExcessControl.trigger is None:
@@ -132,7 +140,7 @@ class PvExcessControl:
         # Add self to class dict and sort by priority (highest to lowest)
         PvExcessControl.instances[self.automation_id] = {'instance': self, 'priority': self.appliance_priority}
         PvExcessControl.instances = dict(sorted(PvExcessControl.instances.items(), key=lambda item: item[1]['priority'], reverse=True))
-        log.info(f'[{self.appliance_switch} (Prio {self.appliance_priority})] Registered appliance.')
+        log.info(f'{self.log_prefix} Registered appliance.')
 
 
     def trigger_factory(self):
@@ -173,37 +181,32 @@ class PvExcessControl:
             for a_id, e in PvExcessControl.instances.copy().items():
                 inst = e['instance']
                 inst.switch_interval_counter += 1
-                log_prefix = f'[{inst.appliance_switch} (Prio {inst.appliance_priority})]'
+                log_prefix = inst.log_prefix
 
-                # Check if automation is activated
-                automation_state = _get_state(inst.automation_id)
-                if automation_state == 'off':
-                    log.debug(f'{log_prefix} Doing nothing, because automation is not activated: State is {automation_state}.')
-                    continue
-
-                elif automation_state is None:
-                    log.info(f'{log_prefix} Automation "{a_id}" was deleted. Removing related class instance.')
-                    del PvExcessControl.instances[a_id]
+                # Check if automation is activated for specific instance
+                if not self.automation_activated(inst.automation_id):
                     continue
 
                 # check min bat lvl and decide whether to regard export power or solar power minus load power
-                if inst.home_battery_level is None:
+                if PvExcessControl.home_battery_level is None:
                     home_battery_level = 100
                 else:
-                    home_battery_level = _get_num_state(inst.home_battery_level)
-                if home_battery_level >= inst.min_home_battery_level:
+                    home_battery_level = _get_num_state(PvExcessControl.home_battery_level)
+                if home_battery_level >= PvExcessControl.min_home_battery_level or not self._force_charge_battery():
                     # home battery charge is high enough to direct solar power to appliances, if solar power is higher than load power
                     # calc avg based on pv excess (solar power - load power) according to specified window
                     avg_excess_power = int(sum(PvExcessControl.pv_history[-inst.appliance_switch_interval:]) / inst.appliance_switch_interval)
-                    log.debug(f'{log_prefix} Home battery charge is sufficient ({home_battery_level}/{inst.min_home_battery_level} %). '
+                    log.debug(f'{log_prefix} Home battery charge is sufficient ({home_battery_level}/{PvExcessControl.min_home_battery_level} %)'
+                              f' OR remaining solar forecast is higher than remaining capacity of home battery. '
                               f'Calculated average excess power based on >> solar power - load power <<: {avg_excess_power} W')
 
                 else:
-                    # home battery charge is not yet high enough. Only use excess power (which would otherwise be
-                    # exported to the grid) for appliance
+                    # home battery charge is not yet high enough OR battery force charge is necessary.
+                    # Only use excess power (which would otherwise be exported to the grid) for appliance
                     # calc avg based on export power history according to specified window
                     avg_excess_power = int(sum(PvExcessControl.export_history[-inst.appliance_switch_interval:]) / inst.appliance_switch_interval)
-                    log.debug(f'{log_prefix} Home battery charge is not sufficient ({home_battery_level}/{inst.min_home_battery_level} %). '
+                    log.debug(f'{log_prefix} Home battery charge is not sufficient ({home_battery_level}/{PvExcessControl.min_home_battery_level} %), '
+                              f'OR remaining solar forecast is lower than remaining capacity of home battery. '
                               f'Calculated average excess power based on >> export power <<: {avg_excess_power} W')
 
                 # add instance including calculated excess power to inverted list (priority from low to high)
@@ -290,7 +293,7 @@ class PvExcessControl:
                             else:
                                 # current cannot be reduced
                                 # turn off appliance
-                                power_consumption = self.switch_off(inst, log_prefix)
+                                power_consumption = self.switch_off(inst)
                                 if power_consumption != 0:
                                     prev_consumption_sum += power_consumption
                                     log.debug(f'{log_prefix} Added {power_consumption=} W to prev_consumption_sum, '
@@ -298,7 +301,7 @@ class PvExcessControl:
 
                         else:
                             # Try to switch off appliance
-                            power_consumption = self.switch_off(inst, log_prefix)
+                            power_consumption = self.switch_off(inst)
                             if power_consumption != 0:
                                 prev_consumption_sum += power_consumption
                                 log.debug(f'{log_prefix} Added {power_consumption=} W to prev_consumption_sum, '
@@ -336,15 +339,23 @@ class PvExcessControl:
             return False
         return True
 
-    def switch_off(self, inst, log_prefix) -> float:
-        # Try to switch off appliance
+    def switch_off(self, inst) -> float:
+        """
+        Switches an appliance off, if possible.
+        :param inst:        PVExcesscontrol Class instance
+        :return:            Power consumption relief achieved through switching the appliance off (will be 0 if appliance could
+                             not be switched off)
+        """
+        # Check if automation is activated for specific instance
+        if not self.automation_activated(inst.automation_id):
+            return 0
         # Do not turn off only-on-appliances
         if inst.appliance_on_only:
-            log.debug(f'{log_prefix} "Only-On-Appliance" detected - Not switching off.')
+            log.debug(f'{inst.log_prefix} "Only-On-Appliance" detected - Not switching off.')
             return 0
         # Do not turn off if switch interval not reached
         elif inst.switch_interval_counter < inst.appliance_switch_interval:
-            log.debug(f'{log_prefix} Cannot switch off appliance, because appliance switch interval is not reached '
+            log.debug(f'{inst.log_prefix} Cannot switch off appliance, because appliance switch interval is not reached '
                       f'({inst.switch_interval_counter}/{inst.appliance_switch_interval}).')
             return 0
         else:
@@ -354,17 +365,34 @@ class PvExcessControl:
                 power_consumption = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
             else:
                 power_consumption = _get_num_state(inst.actual_power)
-            log.debug(f'{log_prefix} Current power consumption: {power_consumption} W')
+            log.debug(f'{inst.log_prefix} Current power consumption: {power_consumption} W')
             # set current to 0
             number.set_value(entity_id=inst.appliance_current_set_entity, value=0)
             # switch off appliance
             switch.turn_off(entity_id=inst.appliance_switch)
-            log.info(f'{log_prefix} Switched off appliance.')
+            log.info(f'{inst.log_prefix} Switched off appliance.')
             task.sleep(1)
             inst.switch_interval_counter = 0
             # "restart" history by adding defined power to each history value within the specified time frame
             self._adjust_pwr_history(inst, power_consumption)
             return power_consumption
+
+
+    def automation_activated(self, a_id):
+        """
+        Checks if the automation for a specific appliance is activated or not.
+        :param a_id:    Automation ID in Home Assistant
+        :return:        True if automation is activated, False otherwise
+        """
+        automation_state = _get_state(a_id)
+        if automation_state == 'off':
+            log.debug(f'Doing nothing, because automation is not activated: State is {automation_state}.')
+            return False
+        elif automation_state is None:
+            log.info(f'Automation "{a_id}" was deleted. Removing related class instance.')
+            del PvExcessControl.instances[a_id]
+            return False
+        return True
 
 
     def _adjust_pwr_history(self, inst, value):
@@ -377,3 +405,28 @@ class PvExcessControl:
         PvExcessControl.pv_history[-inst.appliance_switch_interval:] = [x + value for x in
                                                                         PvExcessControl.pv_history[-inst.appliance_switch_interval:]]
         log.debug(f'Adjusted PV Excess (solar power - load power) history: {PvExcessControl.pv_history}')
+
+
+    def _force_charge_battery(self, kwh_offset: float = 1):
+        """
+        Calculates if the remaining solar power forecast is enough to ensure the specified min. home battery level is reached at the end
+        of the day.
+        :param kwh_offset:  Offset in kWh, which will be added to the calculated remaining battery capacity to ensure an earlier
+                             triggering of a force charge
+        :return:            True if force charge is necessary, False otherwise
+        """
+        if PvExcessControl.home_battery_level is None:
+            return False
+
+        capacity = PvExcessControl.home_battery_capacity
+        remaining_capacity = capacity - (0.01 * capacity * _get_num_state(PvExcessControl.home_battery_level, return_on_error=0))
+        remaining_forecast = _get_num_state(PvExcessControl.solar_production_forecast, return_on_error=0)
+        if remaining_forecast <= remaining_capacity + kwh_offset:
+            log.debug(f'Force battery charge necessary: {capacity=} kWh|{remaining_capacity=} kWh|{remaining_forecast=} kWh| '
+                      f'{kwh_offset=} kWh')
+            # go through appliances lowest to highest priority, and try switching them off individually
+            for a_id, e in dict(sorted(PvExcessControl.instances.items(), key=lambda item: item[1]['priority'])):
+                inst = e['instance']
+                self.switch_off(inst)
+            return True
+        return False

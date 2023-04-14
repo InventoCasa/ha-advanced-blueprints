@@ -425,8 +425,6 @@ class PvExcessControl:
             else:
                 power_consumption = _get_num_state(inst.actual_power)
             log.debug(f'{inst.log_prefix} Current power consumption: {power_consumption} W')
-            # set current to 0
-            number.set_value(entity_id=inst.appliance_current_set_entity, value=0)
             # switch off appliance
             _turn_off(inst.appliance_switch)
             log.info(f'{inst.log_prefix} Switched off appliance.')

@@ -73,7 +73,7 @@ blueprint:
     import_export_power:
       name: "Combined Import/Export Power"
       description: "Sensor which contains **both**, your current **import power from the grid** (*positive* values) and your current **export power to the grid** in watts (*negative* values).\nFor best results, this sensor should be updated at least every minute.\n\n 
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\nThis sensor must be specified **only when you cannot provide both the *Export Power* and *Load Power* sensor.** This is normally the case when you have a standard inverter without battery.\n\n
+      **[WARNING]\nDo not use this sensor when you have a hybrid inverter with battery. Otherwise the script cannot detect when your battery is discharging to compensate for a load.**\n\n
       **[NOTE]**\nThis is typically the value your household energy meter shows."
       default:
       selector:
@@ -136,11 +136,10 @@ blueprint:
 
 
     appliance_switch:
-      name: "Appliance On/Off switch"
-      description: "Switch to turn the appliance on/off."
+      name: "Appliance Entity"
+      description: "Entity to control the appliance (e.g. switch entity, climate entity, light entity, ...)"
       selector:
         entity:
-          domain: switch
           multiple: false
     appliance_switch_interval:
       name: "Appliance On/Off switch interval"

@@ -8,21 +8,79 @@ class_instances = {}
 
 
 
-def _get_state(entity_str: str) -> Union[str, None]:
+def _get_state(entity_id: str) -> Union[str, None]:
     """
     Get the state of an entity in Home Assistant
-    :param entity_str:  Name of the entity
+    :param entity_id:  Name of the entity
     :return:            State if entity name is valid, else None
     """
+    # get entity domain
+    domain = entity_id.split('.')[0]
     try:
-        return state.get(entity_str)
+        entity_state = state.get(entity_id)
     except Exception as e:
-        log.error(f'Could not get state from entity {entity_str}: {e}')
+        log.error(f'Could not get state from entity {entity_id}: {e}')
         return None
 
+    match domain:
+        case 'climate':
+            if entity_state.lower() in ['heat', 'cool', 'boost']:
+                return 'on'
+            elif entity_state == 'off':
+                return entity_state
+            else:
+                log.error(f'Entity state not supported: {entity_state}')
+                return None
+        case 'switch':
+            return entity_state
+        case _:
+            log.error(f'Domain not supported: {domain}')
 
-def _get_num_state(entity_str: str, return_on_error: Union[float, None] = None) -> Union[float, None]:
-    return _validate_number(_get_state(entity_str), return_on_error)
+
+def _turn_off(entity_id: str):
+    """
+    Switches an entity off
+    :param entity_id: Name of the entity
+    """
+    # get entity domain
+    domain = entity_id.split('.')[0]
+    # check if service exists:
+    if not service.has_service(domain, 'turn_off'):
+        log.error(f'Cannot switch off appliance: Service "{domain}.turn_off" does not exist.')
+        return False
+
+    try:
+        service.call(domain, 'turn_off', entity_id=entity_id)
+    except Exception as e:
+        log.error(f'Cannot switch off appliance: {e}')
+        return False
+    else:
+        return True
+
+
+def _turn_on(entity_id: str):
+    """
+    Switches an entity on
+    :param entity_id: Name of the entity
+    """
+    # get entity domain
+    domain = entity_id.split('.')[0]
+    # check if service exists:
+    if not service.has_service(domain, 'turn_on'):
+        log.error(f'Cannot switch on appliance: Service "{domain}.turn_on" does not exist.')
+        return False
+
+    try:
+        service.call(domain, 'turn_on', entity_id=entity_id)
+    except Exception as e:
+        log.error(f'Cannot switch on appliance: {e}')
+        return False
+    else:
+        return True
+
+
+def _get_num_state(entity_id: str, return_on_error: Union[float, None] = None) -> Union[float, None]:
+    return _validate_number(_get_state(entity_id), return_on_error)
 
 
 def _validate_number(num: Union[float, str], return_on_error: Union[float, None] = None) -> Union[float, None]:
@@ -133,6 +191,7 @@ class PvExcessControl:
 
         self.switch_interval_counter = 0
         self.log_prefix = f'[{self.appliance_switch} (Prio {self.appliance_priority})]'
+        self.domain = self.appliance_switch.split('.')[0]
 
         # Make sure trigger method is only registered once
         if PvExcessControl.trigger is None:
@@ -239,7 +298,7 @@ class PvExcessControl:
                     if avg_excess_power >= defined_power:
                         log.debug(f'{log_prefix} Average Excess power is high enough to switch on appliance.')
                         if inst.switch_interval_counter >= inst.appliance_switch_interval:
-                            switch.turn_on(entity_id=inst.appliance_switch)
+                            _turn_on(inst.appliance_switch)
                             inst.switch_interval_counter = 0
                             log.info(f'{log_prefix} Switched on appliance.')
                             # "restart" history by subtracting defined power from each history value within the specified time frame
@@ -369,7 +428,7 @@ class PvExcessControl:
             # set current to 0
             number.set_value(entity_id=inst.appliance_current_set_entity, value=0)
             # switch off appliance
-            switch.turn_off(entity_id=inst.appliance_switch)
+            _turn_off(inst.appliance_switch)
             log.info(f'{inst.log_prefix} Switched off appliance.')
             task.sleep(1)
             inst.switch_interval_counter = 0

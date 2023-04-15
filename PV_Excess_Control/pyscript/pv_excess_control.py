@@ -151,9 +151,11 @@ class PvExcessControl:
     # PV Excess history (PV power minus load power)
     pv_history = [0]*60
     # Minimum excess power in watts. If the average min_excess_power at the specified appliance switch interval is greater than the actual
-    # excess power, the appliance with the lowest priority will be shut off. WARNING: Setting this too low (e.g. to zero) could have the
-    # consequence that your last running appliance will not be switched off.
-    min_excess_power = 10
+    #  excess power, the appliance with the lowest priority will be shut off.
+    #  NOTE: Should be slightly negative, to compensate for inaccurate power corrections
+    #  WARNING: Do net set this to more than 0, otherwise some devices with dynamic current control will abruptly get switched off in some
+    #  situations.
+    min_excess_power = -10
 
 
     def __init__(self, automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,

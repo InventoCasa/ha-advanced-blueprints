@@ -10,8 +10,8 @@ blueprint:
   input:
     automation_id:
       name: "Automation name"
-      description: "**[IMPORTANT]\nThis field must contain the same name/entity_id you defined for this automation.\nThe name must be unique!\nYou can check your automation entity ID by clicking 
-      on the three dots in the top right corner of your automation editor and selecting *info -> settings*. **"
+      description: "**[IMPORTANT]\nThis field must contain the same name you defined for this automation.\nThe name must be unique!\nYou can check your automation name by clicking 
+      on the three dots in the top right corner of your automation editor and selecting *info*. **"
       selector:
         text:
     appliance_priority:

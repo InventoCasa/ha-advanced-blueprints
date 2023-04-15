@@ -35,10 +35,10 @@ def _get_state(entity_id: str) -> Union[str, None]:
         return entity_state
 
 
-def _turn_off(entity_id: str):
+def _turn_off(entity_id: str) -> bool:
     """
     Switches an entity off
-    :param entity_id: Name of the entity
+    :param entity_id: ID of the entity
     """
     # get entity domain
     domain = entity_id.split('.')[0]
@@ -56,10 +56,10 @@ def _turn_off(entity_id: str):
         return True
 
 
-def _turn_on(entity_id: str):
+def _turn_on(entity_id: str) -> bool:
     """
     Switches an entity on
-    :param entity_id: Name of the entity
+    :param entity_id: ID of the entity
     """
     # get entity domain
     domain = entity_id.split('.')[0]
@@ -72,6 +72,29 @@ def _turn_on(entity_id: str):
         service.call(domain, 'turn_on', entity_id=entity_id)
     except Exception as e:
         log.error(f'Cannot switch on appliance: {e}')
+        return False
+    else:
+        return True
+
+
+def _set_value(entity_id: str, value: Union[int, float, str]) -> bool:
+    """
+    Sets a number entity to a specific value
+    :param entity_id: ID of the entity
+    :param value: Numerical value
+    :return:
+    """
+    # get entity domain
+    domain = entity_id.split('.')[0]
+    # check if service exists:
+    if not service.has_service(domain, 'set_value'):
+        log.error(f'Cannot set value "{value}": Service "{domain}.set_value" does not exist.')
+        return False
+
+    try:
+        service.call(domain, 'set_value', entity_id=entity_id, value=value)
+    except Exception as e:
+        log.error(f'Cannot set value "{value}": {e}')
         return False
     else:
         return True
@@ -283,7 +306,7 @@ class PvExcessControl:
                         excess_amps = round(avg_excess_power / (PvExcessControl.grid_voltage * inst.phases), 1) + prev_amps
                         amps = max(inst.min_current, min(excess_amps, inst.max_current))
                         if amps > (prev_amps+0.09):
-                            number.set_value(entity_id=inst.appliance_current_set_entity, value=amps)
+                            _set_value(inst.appliance_current_set_entity, amps)
                             log.info(f'{log_prefix} Setting dynamic current appliance from {prev_amps} to {amps} A per phase.')
                             diff_power = (amps-prev_amps) * PvExcessControl.grid_voltage * inst.phases
                             # "restart" history by subtracting power difference from each history value within the specified time frame
@@ -305,7 +328,7 @@ class PvExcessControl:
                             self._adjust_pwr_history(inst, -defined_power)
                             task.sleep(1)
                             if inst.dynamic_current_appliance:
-                                number.set_value(entity_id=inst.appliance_current_set_entity, value=inst.min_current)
+                                _set_value(inst.appliance_current_set_entity, inst.min_current)
                         else:
                             log.debug(f'{log_prefix} Cannot switch on appliance, because appliance switch interval is not reached '
                                       f'({inst.switch_interval_counter}/{inst.appliance_switch_interval}).')
@@ -341,7 +364,7 @@ class PvExcessControl:
                             if inst.min_current < target_current < actual_current:
                                 # current can be reduced
                                 log.info(f'{log_prefix} Reducing dynamic current appliance from {actual_current} A to {target_current} A.')
-                                number.set_value(entity_id=inst.appliance_current_set_entity, value=target_current)
+                                _set_value(inst.appliance_current_set_entity, target_current)
                                 # add released power consumption to next appliances in list
                                 diff_power = (actual_current - target_current) * PvExcessControl.grid_voltage * inst.phases
                                 prev_consumption_sum += diff_power

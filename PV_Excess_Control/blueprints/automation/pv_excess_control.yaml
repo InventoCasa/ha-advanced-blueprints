@@ -176,7 +176,9 @@ blueprint:
       default:
       selector:
         entity:
-          domain: number
+          domain:
+            - number
+            - input_number
           multiple: false
     min_current:
       name: "Minimum dynamic current"

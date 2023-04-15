@@ -22,19 +22,17 @@ def _get_state(entity_id: str) -> Union[str, None]:
         log.error(f'Could not get state from entity {entity_id}: {e}')
         return None
 
-    match domain:
-        case 'climate':
-            if entity_state.lower() in ['heat', 'cool', 'boost']:
-                return 'on'
-            elif entity_state == 'off':
-                return entity_state
-            else:
-                log.error(f'Entity state not supported: {entity_state}')
-                return None
-        case 'switch':
+    if domain == 'climate':
+        if entity_state.lower() in ['heat', 'cool', 'boost', 'on']:
+            return 'on'
+        elif entity_state == 'off':
             return entity_state
-        case _:
-            log.error(f'Domain not supported: {domain}')
+        else:
+            log.error(f'Entity state not supported: {entity_state}')
+            return None
+
+    else:
+        return entity_state
 
 
 def _turn_off(entity_id: str):

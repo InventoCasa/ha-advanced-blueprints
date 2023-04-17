@@ -505,7 +505,7 @@ class PvExcessControl:
             log.debug(f'Force battery charge necessary: {capacity=} kWh|{remaining_capacity=} kWh|{remaining_forecast=} kWh| '
                       f'{kwh_offset=} kWh')
             # go through appliances lowest to highest priority, and try switching them off individually
-            for a_id, e in dict(sorted(PvExcessControl.instances.items(), key=lambda item: item[1]['priority'])):
+            for a_id, e in dict(sorted(PvExcessControl.instances.items(), key=lambda item: item[1]['priority'])).items():
                 inst = e['instance']
                 self.switch_off(inst)
             return True

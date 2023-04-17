@@ -115,7 +115,7 @@ blueprint:
       description: "The usable capacity (in kWh) of your home battery\n\n
       **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
       **[NOTE]**\n
-      - If your solar system is not coupled with a battery, this field will be ignored."
+      If your solar system is not coupled with a battery, this field will be ignored."
       default: 0
       selector:
         number:
@@ -155,6 +155,66 @@ blueprint:
           max: 60
           step: 1
           unit_of_measurement: min
+
+    appliance_min_runtime:
+      name: "Appliance minimum daily runtime"
+      description: "Defines the daily minimum time (in minutes).\n\n
+      **[NOTE]**\n
+      - If the minimum runtime is not reached until sunset, the appliance will turn on again for the remaining runtime.\n
+      - This field will be ignored if set to zero\n
+      - Total runtime will be reset at midnight."
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 720
+          step: 5
+          unit_of_measurement: min
+    appliance_continuous_runtime:
+      name: "Enforce minimum daily runtime"
+      description: "Tick this box if your appliance should run continuously till the minimum runtime is reached."
+      default: False
+      selector:
+        boolean:
+    appliance_max_runtime:
+      name: "Appliance maximum daily runtime"
+      description: "Defines the daily maximum runtime (in minutes).\n\n
+      **[NOTE]**\n
+      - If the max. runtime is reached, the appliance will not be turned on again, even if there is enough solar power available.\n
+      - This field will be ignored if set to zero\n
+      - Total runtime will be reset at midnight."
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 720
+          step: 5
+          unit_of_measurement: min
+    appliance_generic_sensor:
+      name: "Generic sensor"
+      description: "The number entity to which the calculated current will be sent.\n\n
+      **[NOTE]\nOnly relevant when dynamic current control is set!**\nLeave empty if *dynamic current control* is deactivated."
+      default:
+      selector:
+        entity:
+          domain:
+            - number
+            - input_number
+          multiple: false
+    appliance_generic_target:
+      name: "Numerical target for generic sensor"
+      description: "Defines the daily maximum runtime (in minutes).\n\n
+      **[NOTE]**\n
+      - If the max. runtime is reached, the appliance will not be turned on again, even if there is enough solar power available.\n
+      - This field will be ignored if set to zero\n
+      - Total runtime will be reset at midnight."
+      default:
+      selector:
+        number:
+          min: -1000
+          max: 1000
+          mode: box
+          unit_of_measurement: "(number)"
 
 
     appliance_on_only:

@@ -9,9 +9,10 @@ blueprint:
   domain: automation
   input:
     automation_id:
-      name: "Automation name"
-      description: "**[IMPORTANT]\nThis field must contain the same name you defined for this automation.\nThe name must be unique!\nYou can check your automation name by clicking 
-      on the three dots in the top right corner of your automation editor and selecting *info*. **"
+      name: "Automation Entity ID"
+      description: "**[IMPORTANT]**\n
+      **This field must contain the *entity_id* you defined for this automation.\nThe entity_id must be unique!\nYou can check your automation entity_id by clicking 
+      on the three dots in the top right corner of your automation editor and selecting *info* --> *settings***"
       selector:
         text:
     appliance_priority:
@@ -29,7 +30,7 @@ blueprint:
     grid_voltage:
       name: "Mains Voltage"
       description: "The voltage of your household electrical grid (**not** your appliance!).\nTypically 230V for most of EU, 110V for US.\n\n 
-      **[WARNING]\nThis value must be the same for all your created automations based on this blueprint!**"
+      **[WARNING]**\n- **This value must be the same for all your created automations based on this blueprint!**"
       default: 230
       selector:
         number:
@@ -41,7 +42,7 @@ blueprint:
     pv_power:
       name: "PV Power"
       description: "Sensor which contains your current **PV generated power** in watts.\nMust not be negative! For best results, this sensor should be updated at least every minute.\n\n
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**"
+      **[WARNING]**\n- **This sensor must be the same for all your created automations based on this blueprint!**"
       selector:
         entity:
           domain: sensor
@@ -49,8 +50,9 @@ blueprint:
     export_power:
       name: "Export Power"
       description: "Sensor which contains your current **export power to the grid** in watts.\nMust not be negative! For best results, this sensor should be updated at least every minute.\n\n 
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
-      **[NOTE]**\nIf you can't measure this value directly, leave this field empty and provide a combined import/export power sensor."
+      **[WARNING]**\n- **This sensor must be the same for all your created automations based on this blueprint!**\n
+      - **This sensor must always be provided together with the *load power* sensor.**\n\n
+      **[NOTE]**\n- If you can't measure this value directly, leave this field empty and provide a combined import/export power sensor."
       default:
       selector:
         entity:
@@ -60,9 +62,10 @@ blueprint:
     load_power:
       name: "Load Power"
       description: "Sensor which contains your current **load power** (*combined household appliance consumption without home battery charging consumption*) in watts. Must not be negative!\nFor best results, this sensor should be updated at least every minute.\n\n
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
-      **[NOTE]**\nIf you can't measure this value directly, leave this field empty and provide a combined import/export power sensor.\n
-      The combined household appliance consumption will always be prioritized, meaning that if you e.g. turn on your electric oven, and as a result the excess power is near zero, 
+      **[WARNING]**\n- **This sensor must be the same for all your created automations based on this blueprint!**\n
+      - **This sensor must always be provided together with the *export power* sensor.**\n\n
+      **[NOTE]**\n- If you can't measure this value directly, leave this field empty and provide a combined import/export power sensor.\n
+      - The combined household appliance consumption will always be prioritized, meaning that if you e.g. turn on your electric oven, and as a result the excess power is near zero, 
       your appliance with the lowest priority will be switched off (according to its On/Off switch interval)."
       default:
       selector:
@@ -73,9 +76,12 @@ blueprint:
     import_export_power:
       name: "Combined Import/Export Power"
       description: "Sensor which contains **both**, your current **import power from the grid** (*positive* values) and your current **export power to the grid** in watts (*negative* values).\nFor best results, this sensor should be updated at least every minute.\n\n
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\nThis sensor must be specified **only when you cannot provide both the *Export Power* and *Load Power* sensor.** This is normally the case when you have a standard inverter without battery.\n\n
-      **[WARNING]\nDo not use this sensor when you have a hybrid inverter with battery. Otherwise the script cannot detect when your battery is discharging to compensate for a load!**\n\n
-      **[NOTE]**\nThis is typically the value your household energy meter shows."
+      **[WARNING]**\n
+      - **This sensor must be the same for all your created automations based on this blueprint!**\n
+      - **This sensor may only be specified when you cannot provide both the *Export Power* and *Load Power* sensor! This is normally the case when you have a standard inverter without battery.**\n
+      - **Do not use this sensor when you have a hybrid inverter with battery. Otherwise the script cannot detect when your battery is discharging to compensate for a load!**\n\n
+      **[NOTE]**\n
+      - This is typically the value your household energy meter shows."
       default:
       selector:
         entity:
@@ -86,8 +92,10 @@ blueprint:
     home_battery_level:
       name: "Home battery level"
       description: "Sensor which represents the **charge level of your home battery** (in percent)\n\n
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
-      **[NOTE]**\nIf your solar system is not coupled with a battery, leave this field empty"
+      **[WARNING]**\n
+      - **This sensor must be the same for all your created automations based on this blueprint!**\n\n
+      **[NOTE]**\n
+      - If your solar system is not coupled with a battery, leave this field empty"
       default:
       selector:
         entity:
@@ -97,7 +105,8 @@ blueprint:
     min_home_battery_level:
       name: "Minimum home battery level (end of day)"
       description: "Minimum desired power level (in percent) of your home battery (end of day)\n\n
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
+      **[WARNING]**\n
+      - **This sensor must be the same for all your created automations based on this blueprint!**\n\n
       **[NOTE]**\n
       - If your solar system is not coupled with a battery, this field will be ignored.\n
       - *If you also specify **solar production forecast***, the script will optimize your PV excess consumption right away and ensure that the specified *minimum home battery level* is reached at the **end of the day**.\n
@@ -113,7 +122,8 @@ blueprint:
     home_battery_capacity:
       name: "Home battery capacity"
       description: "The usable capacity (in kWh) of your home battery\n\n
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
+      **[WARNING]**\n
+      - **This sensor must be the same for all your created automations based on this blueprint!**\n\n
       **[NOTE]**\n
       - If your solar system is not coupled with a battery, this field will be ignored."
       default: 0
@@ -127,8 +137,10 @@ blueprint:
     solar_production_forecast:
       name: "*Remaining* solar production forecast (Solcast)"
       description: "Sensor which represents the **remaining solar production forecast** for the current day (in kWh). Will be used to ensure the specified *minimum home battery level* is reached at the end of the day.\n\n
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
-      **[NOTE]**\nIf your solar system is not coupled with a battery, leave this field empty"
+      **[WARNING]**\n
+      - **This sensor must be the same for all your created automations based on this blueprint!**\n\n
+      **[NOTE]**\n
+      - If your solar system is not coupled with a battery, leave this field empty"
       default:
       selector:
         entity:
@@ -146,7 +158,7 @@ blueprint:
       name: "Appliance On/Off switch interval"
       description: "Defines the minimum time (in minutes) before switching the appliance on/off again.\nWill also be used as the averaging interval for available excess power.\n\n
       **[NOTE]**\n
-      When first creating and executing your automation, it will most likely take the here defined time till your appliance can switch on, even if enough excess solar is available beforehand.\n
+      - When first creating and executing your automation, it will most likely take the here defined time till your appliance can switch on, even if enough excess solar is available beforehand.
       This is due to the excess_history getting populated with zeros at the beginning."
       default: 5
       selector:
@@ -172,7 +184,8 @@ blueprint:
     appliance_current_set_entity:
       name: "Appliance SetCurrent entity"
       description: "The number entity to which the calculated current will be sent.\n\n
-      **[NOTE]\nOnly relevant when dynamic current control is set!**\nLeave empty if *dynamic current control* is deactivated."
+      **[NOTE]**\n
+      - **Only relevant when dynamic current control is set!**\nLeave empty if *dynamic current control* is deactivated."
       default:
       selector:
         entity:
@@ -183,7 +196,8 @@ blueprint:
     min_current:
       name: "Minimum dynamic current"
       description: "Minimum current per phase your appliance can handle.\n\n
-      **[NOTE]\nOnly relevant when dynamic current control is set!**\nLeave empty if *dynamic current control* is deactivated."
+      **[NOTE]**\n
+      - **Only relevant when dynamic current control is set!**\nLeave empty if *dynamic current control* is deactivated."
       default: 6
       selector:
         number:
@@ -194,7 +208,8 @@ blueprint:
     max_current:
       name: "Maximum dynamic current"
       description: "Maximum current per phase your appliance can handle.\n\n
-      **[NOTE]\nOnly relevant when dynamic current control is set!**\nLeave empty if *dynamic current control* is deactivated."
+      **[NOTE]**\n
+      - **Only relevant when dynamic current control is set!**\nLeave empty if *dynamic current control* is deactivated."
       default: 16
       selector:
         number:

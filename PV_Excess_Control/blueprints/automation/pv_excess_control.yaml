@@ -9,9 +9,9 @@ blueprint:
   domain: automation
   input:
     automation_id:
-      name: "Automation name"
-      description: "**[IMPORTANT]\nThis field must contain the same name you defined for this automation.\nThe name must be unique!\nYou can check your automation name by clicking 
-      on the three dots in the top right corner of your automation editor and selecting *info*. **"
+      name: "Automation Entity ID"
+      description: "**[IMPORTANT]\nThis field must contain the *entity_id* you defined for this automation.\nThe entity_id must be unique!\nYou can check your automation entity_id by clicking 
+      on the three dots in the top right corner of your automation editor and selecting *info* --> *settings* **"
       selector:
         text:
     appliance_priority:
@@ -49,7 +49,8 @@ blueprint:
     export_power:
       name: "Export Power"
       description: "Sensor which contains your current **export power to the grid** in watts.\nMust not be negative! For best results, this sensor should be updated at least every minute.\n\n 
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
+      **[WARNING]**\n- **This sensor must be the same for all your created automations based on this blueprint!**\n
+      - **This sensor must always be provided together with the *load power* sensor.**\n\n
       **[NOTE]**\nIf you can't measure this value directly, leave this field empty and provide a combined import/export power sensor."
       default:
       selector:
@@ -60,7 +61,8 @@ blueprint:
     load_power:
       name: "Load Power"
       description: "Sensor which contains your current **load power** (*combined household appliance consumption without home battery charging consumption*) in watts. Must not be negative!\nFor best results, this sensor should be updated at least every minute.\n\n
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n\n
+      **[WARNING]**\n- **This sensor must be the same for all your created automations based on this blueprint!**\n
+      - **This sensor must always be provided together with the *export power* sensor.**\n\n
       **[NOTE]**\nIf you can't measure this value directly, leave this field empty and provide a combined import/export power sensor.\n
       The combined household appliance consumption will always be prioritized, meaning that if you e.g. turn on your electric oven, and as a result the excess power is near zero, 
       your appliance with the lowest priority will be switched off (according to its On/Off switch interval)."
@@ -73,7 +75,7 @@ blueprint:
     import_export_power:
       name: "Combined Import/Export Power"
       description: "Sensor which contains **both**, your current **import power from the grid** (*positive* values) and your current **export power to the grid** in watts (*negative* values).\nFor best results, this sensor should be updated at least every minute.\n\n
-      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\nThis sensor must be specified **only when you cannot provide both the *Export Power* and *Load Power* sensor.** This is normally the case when you have a standard inverter without battery.\n\n
+      **[WARNING]\nThis sensor must be the same for all your created automations based on this blueprint!**\n**This sensor may only be specified when you cannot provide both the *Export Power* and *Load Power* sensor!** This is normally the case when you have a standard inverter without battery.\n\n
       **[WARNING]\nDo not use this sensor when you have a hybrid inverter with battery. Otherwise the script cannot detect when your battery is discharging to compensate for a load!**\n\n
       **[NOTE]**\nThis is typically the value your household energy meter shows."
       default:

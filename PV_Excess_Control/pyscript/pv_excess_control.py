@@ -141,6 +141,7 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
                       actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
                       home_battery_capacity, solar_production_forecast):
 
+    automation_id = automation_id[11:] if automation_id[:11] == 'automation.' else automation_id
     automation_id = _replace_vowels(f"automation.{automation_id.strip().replace(' ', '_').lower()}")
 
 
@@ -406,7 +407,7 @@ class PvExcessControl:
 
     def sanity_check(self) -> bool:
         if PvExcessControl.import_export_power is not None and PvExcessControl.home_battery_level is not None:
-            log.warning('"Import/Export power" has been defined together with "Home Battery". This is not intended and will to always '
+            log.warning('"Import/Export power" has been defined together with "Home Battery". This is not intended and will lead to always '
                         'giving the home battery priority over appliances, regardless of the specified min. battery level.')
             return True
         if PvExcessControl.import_export_power is not None and (PvExcessControl.export_power is not None or

@@ -233,7 +233,7 @@ blueprint:
 
     defined_current:
       name: "Appliance typical current draw"
-      description: "Typical/expected current draw of your appliance.\nRelevant for deciding how much excess is needed before turning the specific appliance on.\n 
+      description: "Typical/expected current draw of your appliance per phase.\nRelevant for deciding how much excess is needed before turning the specific appliance on.\n 
       If your appliance supports dynamic current setting, set the *typical current* to the same value as the *minimum dynamic current*."
       default: 6
       selector:

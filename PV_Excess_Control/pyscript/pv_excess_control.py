@@ -136,7 +136,7 @@ def _replace_vowels(input: str) -> str:
 
 @service
 def pv_excess_control(automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
-                      min_home_battery_level, dynamic_current_appliance, three_phase_appliance, min_current,
+                      min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                       max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                       actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
                       home_battery_capacity, solar_production_forecast):
@@ -147,7 +147,7 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
 
     class_instances[automation_id] = PvExcessControl(automation_id, appliance_priority, export_power, pv_power,
                                                      load_power, home_battery_level, min_home_battery_level,
-                                                     dynamic_current_appliance, three_phase_appliance, min_current,
+                                                     dynamic_current_appliance, appliance_phases, min_current,
                                                      max_current, appliance_switch, appliance_switch_interval,
                                                      appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
                                                      grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast)
@@ -183,7 +183,7 @@ class PvExcessControl:
 
 
     def __init__(self, automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
-                 min_home_battery_level, dynamic_current_appliance, three_phase_appliance, min_current,
+                 min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                  max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                  actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
                  home_battery_capacity, solar_production_forecast):
@@ -208,10 +208,7 @@ class PvExcessControl:
         self.defined_current = float(defined_current)
         self.appliance_on_only = bool(appliance_on_only)
 
-        if bool(three_phase_appliance):
-            self.phases = 3
-        else:
-            self.phases = 1
+        self.phases = appliance_phases
 
         self.switch_interval_counter = 0
         self.log_prefix = f'[{self.appliance_switch} (Prio {self.appliance_priority})]'

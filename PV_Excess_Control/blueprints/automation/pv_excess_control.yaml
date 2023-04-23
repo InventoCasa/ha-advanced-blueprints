@@ -171,10 +171,18 @@ blueprint:
 
     appliance_on_only:
       name: "Only-On-Appliance"
-      description: "Tick this box if your appliance should only be turned on, but **never off**.\nUseful e.g. for washing machines, which should not be turned off even if there is not enough solar power anymore."
+      description: "Tick this box if your appliance should only be turned on, but **never off**.\n
+      Useful e.g. for washing machines, which should not be turned off even if there is not enough solar power anymore."
       default: False
       selector:
         boolean:
+    appliance_once_only:
+      name: "Only-Run-Once-Appliance"
+      description: "Tick this box if your appliance should run **once a day** at most."
+      default: False
+      selector:
+        boolean:
+
     dynamic_current_appliance:
       name: "Dynamic current control"
       description: "Tick this box if your appliance supports different current levels.\nUseful e.g. for **wallboxes**.\nIf False, the appliance will only be switched on or off in relation to the PV excess."
@@ -284,3 +292,4 @@ action:
       import_export_power: !input import_export_power
       home_battery_capacity: !input home_battery_capacity
       solar_production_forecast: !input solar_production_forecast
+      appliance_once_only: !input appliance_once_only

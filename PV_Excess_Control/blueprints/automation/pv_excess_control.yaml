@@ -222,7 +222,7 @@ blueprint:
       description: "Input here, with how many phases your appliance works. Typically, you either have 1 phase (e.g. washing machine, dishwasher) or 3 phases (wallbox).\n\n
       **[NOTE]**\n
       If you have a three-phase wallbox, but your car can only charge with one phase, you need to input 1 here."
-      default: 3
+      default: 1
       selector:
         number:
           min: 1

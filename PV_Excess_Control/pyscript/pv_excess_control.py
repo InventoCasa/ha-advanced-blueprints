@@ -134,12 +134,20 @@ def _replace_vowels(input: str) -> str:
     return ''.join(res)
 
 
+@time_trigger("cron(0 0 * * *)")
+def reset_midnight():
+    log.info("Resetting 'switched_on_today' instance variables.")
+    for e in PvExcessControl.instances.copy().values():
+        inst = e['instance']
+        inst.switched_on_today = False
+
+
 @service
 def pv_excess_control(automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
                       min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                       max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                       actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
-                      home_battery_capacity, solar_production_forecast):
+                      home_battery_capacity, solar_production_forecast, appliance_once_only):
 
     automation_id = automation_id[11:] if automation_id[:11] == 'automation.' else automation_id
     automation_id = _replace_vowels(f"automation.{automation_id.strip().replace(' ', '_').lower()}")
@@ -150,7 +158,8 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
                                                      dynamic_current_appliance, appliance_phases, min_current,
                                                      max_current, appliance_switch, appliance_switch_interval,
                                                      appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
-                                                     grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast)
+                                                     grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast,
+                                                     appliance_once_only)
 
 
 
@@ -186,7 +195,7 @@ class PvExcessControl:
                  min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                  max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                  actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
-                 home_battery_capacity, solar_production_forecast):
+                 home_battery_capacity, solar_production_forecast, appliance_once_only):
         self.automation_id = automation_id
         self.appliance_priority = int(appliance_priority)
         PvExcessControl.export_power = export_power
@@ -207,10 +216,12 @@ class PvExcessControl:
         self.actual_power = actual_power
         self.defined_current = float(defined_current)
         self.appliance_on_only = bool(appliance_on_only)
+        self.appliance_once_only = appliance_once_only
 
         self.phases = appliance_phases
 
         self.switch_interval_counter = 0
+        self.switched_on_today = False
         self.log_prefix = f'[{self.appliance_switch} (Prio {self.appliance_priority})]'
         self.domain = self.appliance_switch.split('.')[0]
 
@@ -319,7 +330,7 @@ class PvExcessControl:
                     if avg_excess_power >= defined_power:
                         log.debug(f'{log_prefix} Average Excess power is high enough to switch on appliance.')
                         if inst.switch_interval_counter >= inst.appliance_switch_interval:
-                            _turn_on(inst.appliance_switch)
+                            self.switch_on(inst)
                             inst.switch_interval_counter = 0
                             log.info(f'{log_prefix} Switched on appliance.')
                             # "restart" history by subtracting defined power from each history value within the specified time frame
@@ -418,6 +429,17 @@ class PvExcessControl:
                       'allowed. Please specify either "Import/Export power" or both "Load power" & "Export Power".')
             return False
         return True
+
+    def switch_on(self, inst):
+        """
+        Switches an appliance on, if possible.
+        :param inst:        PVExcesscontrol Class instance
+        """
+        if inst.appliance_once_only and inst.switched_on_today:
+            log.debug(f'{inst.log_prefix} "Only-Run-Once-Appliance" detected - Appliance was already switched on today - '
+                      f'Not switching on again.')
+        if _turn_on(inst.appliance_switch):
+            inst.switched_on_today = True
 
     def switch_off(self, inst) -> float:
         """

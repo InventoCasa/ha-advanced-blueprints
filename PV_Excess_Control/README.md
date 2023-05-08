@@ -5,8 +5,9 @@ If you like my work, you can support me here:\
 [<img src="https://user-images.githubusercontent.com/1286821/181085373-12eee197-187a-4438-90fe-571ac6d68900.png" alt="Buy me a coffee" width="200" />](https://buymeacoffee.com/henrikIC)
 
 ## Features
+:white_check_mark: Works with hybrid and standard inverters\
 :white_check_mark: Configurable priority handling between multiple appliances\
-:white_check_mark: Define a *minimum home battery level* before directing PV excess to your specific appliance\
+:white_check_mark: Include solar forecasts from **Solcast** to ensure your home battery is charged to a specific level at the end of the day\
 :white_check_mark: Define an *On/Off switch interval* / solar power averaging interval\
 :white_check_mark: Supports dynamic current control (e.g. for wallboxes)\
 :white_check_mark: Define min. and max. current for appliances supporting dynamic current control\
@@ -16,12 +17,16 @@ If you like my work, you can support me here:\
 
 ## Prerequisites
 - A working installation of [pyscript](https://github.com/custom-components/pyscript) (can be installed via [HACS](https://hacs.xyz/))
+- (*Optional:* A working installation of solcast (can be installed via [HACS custom repository](https://github.com/oziee/ha-solcast-solar))
 - Home Assistant v2023.1 or greater
-- Access to the following values from your (hybrid) PV inverter:
+- Access to the following values from your hybrid PV inverter:
   - Export power
   - PV Power
   - Load Power
-  - (Home battery level)
+  - Home battery level
+- OR: Access to the following values from your standard inverter:
+  - Combined import/export power
+  - PV Power
 - Pyscript must be configured to allow all imports. This can be done 
   - either via UI: 
     - Configuration -> Integrations page -> “+” -> Pyscript Python scripting

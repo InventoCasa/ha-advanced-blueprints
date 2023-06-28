@@ -3,6 +3,7 @@
 # Automations can be deactivated correctly from the UI!
 # -------------------------------------------------
 from typing import Union
+import datetime
 
 class_instances = {}
 
@@ -140,6 +141,7 @@ def reset_midnight():
     for e in PvExcessControl.instances.copy().values():
         inst = e['instance']
         inst.switched_on_today = False
+        inst.daily_run_time = 0
 
 
 @service
@@ -225,6 +227,8 @@ class PvExcessControl:
 
         self.switch_interval_counter = 0
         self.switched_on_today = False
+        self.switched_on_time = datetime.datetime.now()
+        self.daily_run_time = 0
         self.log_prefix = f'[{self.appliance_switch} (Prio {self.appliance_priority})]'
         self.domain = self.appliance_switch.split('.')[0]
 
@@ -295,6 +299,8 @@ class PvExcessControl:
                 if _get_state(inst.appliance_switch) == 'on':
                     # check if current of appliance can be increased
                     log.debug(f'{log_prefix} Appliance is already switched on.')
+                    run_time = inst.daily_run_time + (datetime.datetime.now() - inst.switched_on_time).total_seconds()
+                    log.info(f'{inst.log_prefix} Application has run for {(run_time / 60):.1f} minutes')
                     if avg_excess_power >= PvExcessControl.min_excess_power and inst.dynamic_current_appliance:
                         # try to increase dynamic current, because excess solar power is available
                         prev_amps = _get_num_state(inst.appliance_current_set_entity, return_on_error=inst.min_current)
@@ -469,6 +475,7 @@ class PvExcessControl:
                       f'Not switching on again.')
         if _turn_on(inst.appliance_switch):
             inst.switched_on_today = True
+            inst.switched_on_time = datetime.datetime.now()
 
     def switch_off(self, inst) -> float:
         """
@@ -499,7 +506,9 @@ class PvExcessControl:
             log.debug(f'{inst.log_prefix} Current power consumption: {power_consumption} W')
             # switch off appliance
             _turn_off(inst.appliance_switch)
+            inst.daily_run_time += (datetime.datetime.now() - inst.switched_on_time).total_seconds()
             log.info(f'{inst.log_prefix} Switched off appliance.')
+            log.info(f'{inst.log_prefix} Application has run for {(inst.daily_run_time / 60):.1f} minutes')
             task.sleep(1)
             inst.switch_interval_counter = 0
             # "restart" history by adding defined power to each history value within the specified time frame

@@ -163,7 +163,7 @@ blueprint:
       default: 5
       selector:
         number:
-          min: 1
+          min: 5
           max: 60
           step: 1
           unit_of_measurement: min

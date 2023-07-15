@@ -183,6 +183,17 @@ blueprint:
       selector:
         boolean:
 
+    appliance_maximum_run_time:
+      name: "Appliance maximum daily runtime"
+      description: "Defines the maximum time (in minutes) the appliance should run in a day.\n0 means infinite time"
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+
     dynamic_current_appliance:
       name: "Dynamic current control"
       description: "Tick this box if your appliance supports different current levels.\nUseful e.g. for **wallboxes**.\nIf False, the appliance will only be switched on or off in relation to the PV excess."
@@ -293,3 +304,4 @@ action:
       home_battery_capacity: !input home_battery_capacity
       solar_production_forecast: !input solar_production_forecast
       appliance_once_only: !input appliance_once_only
+      appliance_maximum_run_time: !input appliance_maximum_run_time

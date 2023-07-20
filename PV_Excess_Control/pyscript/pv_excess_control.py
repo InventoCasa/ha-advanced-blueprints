@@ -141,15 +141,25 @@ def reset_midnight():
     for e in PvExcessControl.instances.copy().values():
         inst = e['instance']
         inst.switched_on_today = False
+        inst.enforce_minimum_run = False
         inst.daily_run_time = 0
 
+@time_trigger("cron(0 20 * * *)")
+def enforce_runtime():
+    log.info("Starting to enforce minimum runtime.")
+    for e in PvExcessControl.instances.copy().values():
+        inst = e['instance']
+        log.info(f'{inst.log_prefix} Ran for {inst.daily_run_time:.1f} out of {inst.appliance_minimum_run_time:.1f} minutes')
+        if (inst.daily_run_time / 60) < inst.appliance_minimum_run_time:
+            inst.enforce_minimum_run = True
 
 @service
 def pv_excess_control(automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
                       min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                       max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                       actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
-                      home_battery_capacity, solar_production_forecast, appliance_once_only, appliance_maximum_run_time):
+                      home_battery_capacity, solar_production_forecast, appliance_once_only, appliance_maximum_run_time,
+                      appliance_minimum_run_time):
 
     automation_id = automation_id[11:] if automation_id[:11] == 'automation.' else automation_id
     automation_id = _replace_vowels(f"automation.{automation_id.strip().replace(' ', '_').lower()}")
@@ -161,7 +171,7 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
                                                      max_current, appliance_switch, appliance_switch_interval,
                                                      appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
                                                      grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast,
-                                                     appliance_once_only, appliance_maximum_run_time)
+                                                     appliance_once_only, appliance_maximum_run_time, appliance_minimum_run_time)
 
 
 
@@ -199,7 +209,8 @@ class PvExcessControl:
                  min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                  max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                  actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
-                 home_battery_capacity, solar_production_forecast, appliance_once_only, appliance_maximum_run_time):
+                 home_battery_capacity, solar_production_forecast, appliance_once_only, appliance_maximum_run_time,
+                 appliance_minimum_run_time):
         self.automation_id = automation_id
         self.appliance_priority = int(appliance_priority)
         PvExcessControl.export_power = export_power
@@ -222,6 +233,8 @@ class PvExcessControl:
         self.appliance_on_only = bool(appliance_on_only)
         self.appliance_once_only = appliance_once_only
         self.appliance_maximum_run_time = appliance_maximum_run_time
+        self.appliance_minimum_run_time = appliance_minimum_run_time
+        self.enforce_minimum_run = False
 
         self.phases = appliance_phases
 
@@ -261,6 +274,28 @@ class PvExcessControl:
 
                 # Check if automation is activated for specific instance
                 if not self.automation_activated(inst.automation_id):
+                    continue
+
+                # Check to see if we are enforcing the minimum run time
+                # This gets set at night by enforce_runtime()
+                if inst.enforce_minimum_run:
+                    # If we aren't on, then turn on
+                    if _get_state(inst.appliance_switch) != 'on':
+                        self.switch_on(inst)
+
+                    # Update the time
+                    run_time = (inst.daily_run_time + (datetime.datetime.now() - inst.switched_on_time).total_seconds()) / 60
+                    log.debug(f'{inst.log_prefix} Enforcing minimum application has run for {run_time:.1f} out of {inst.appliance_minimum_run_time:.1f} minutes')
+
+                    if run_time > inst.appliance_minimum_run_time:
+                        log.info(f'{inst.log_prefix} Application has run for minimum minutes, turning off')
+                        # Try to switch off appliance
+                        power_consumption = self.switch_off(inst)
+
+                        # If the device turned off, disable enforced running
+                        if power_consumption > 0:
+                            inst.enforce_minimum_run = False
+
                     continue
 
                 # check min bat lvl and decide whether to regard export power or solar power minus load power

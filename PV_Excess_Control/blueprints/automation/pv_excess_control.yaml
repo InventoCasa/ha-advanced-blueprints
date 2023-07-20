@@ -183,6 +183,17 @@ blueprint:
       selector:
         boolean:
 
+    appliance_minimum_run_time:
+      name: "Appliance minimum daily runtime"
+      description: "Defines the minimum time (in minutes) the appliance should run in a day."
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+
     appliance_maximum_run_time:
       name: "Appliance maximum daily runtime"
       description: "Defines the maximum time (in minutes) the appliance should run in a day.\n0 means infinite time"
@@ -305,3 +316,4 @@ action:
       solar_production_forecast: !input solar_production_forecast
       appliance_once_only: !input appliance_once_only
       appliance_maximum_run_time: !input appliance_maximum_run_time
+      appliance_minimum_run_time: !input appliance_minimum_run_time

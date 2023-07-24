@@ -149,9 +149,13 @@ def enforce_runtime():
     log.info("Starting to enforce minimum runtime.")
     for e in PvExcessControl.instances.copy().values():
         inst = e['instance']
-        log.info(f'{inst.log_prefix} Ran for {inst.daily_run_time:.1f} out of {inst.appliance_minimum_run_time:.1f} minutes')
-        if (inst.daily_run_time / 60) < inst.appliance_minimum_run_time:
+        run_time_min = inst.daily_run_time / 60
+        log.info(f'{inst.log_prefix} Ran for {run_time_min:.1f} out of {inst.appliance_minimum_run_time:.1f} minutes')
+        if run_time_min < inst.appliance_minimum_run_time:
+            log.info(f'{inst.log_prefix} Enforcing minimum runtime')
             inst.enforce_minimum_run = True
+        else:
+            log.info(f'{inst.log_prefix} Application ran long enough, no minimum enforcement')
 
 @service
 def pv_excess_control(automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
@@ -353,8 +357,10 @@ class PvExcessControl:
                                     f'Assuming OFF state.')
 
                     defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
-                    if avg_excess_power >= defined_power:
-                        log.debug(f'{log_prefix} Average Excess power is high enough to switch on appliance.')
+                    if avg_excess_power >= defined_power or self._run_anyway(inst, (inst.daily_run_time / 60), avg_excess_power):
+                        if avg_excess_power >= defined_power:
+                            log.debug(f'{log_prefix} Average Excess power is high enough to switch on appliance.')
+
                         if inst.switch_interval_counter >= inst.appliance_switch_interval:
                             self.switch_on(inst)
                             inst.switch_interval_counter = 0
@@ -395,9 +401,21 @@ class PvExcessControl:
                         continue
 
 
-                    if avg_excess_power < PvExcessControl.min_excess_power:
-                        log.debug(f'{log_prefix} Average Excess Power ({avg_excess_power} W) is less than minimum excess power '
-                                  f'({PvExcessControl.min_excess_power} W).')
+                    # Check if we don't have enough excess power and if we aren't trying to meet a minimum run time
+                    # Note that we add the current appliance usage to the excess power, because we want to continue
+                    # running if the current appliance is only partially using excess power
+                    if inst.actual_power is None:
+                        power_consumption = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
+                    else:
+                        power_consumption = _get_num_state(inst.actual_power)
+
+                    appliance_excess_power = avg_excess_power + power_consumption
+                    if avg_excess_power < PvExcessControl.min_excess_power and not self._run_anyway(inst, run_time, appliance_excess_power):
+                        if avg_excess_power < PvExcessControl.min_excess_power:
+                            log.debug(f'{log_prefix} Average Excess Power ({avg_excess_power} W) is less than minimum excess power '
+                                      f'({PvExcessControl.min_excess_power} W).')
+                        else:
+                            log.debug(f'{log_prefix} The appliance {power_consumption}W is not using any excess power {appliance_excess_power}W')
 
                         # check if current of dyn. curr. appliance can be reduced
                         if inst.dynamic_current_appliance:
@@ -437,9 +455,9 @@ class PvExcessControl:
                                 log.debug(f'{log_prefix} Added {power_consumption=} W to prev_consumption_sum, '
                                           f'which is now {prev_consumption_sum} W.')
                     else:
-                        log.debug(f'{log_prefix} Average Excess Power ({avg_excess_power} W) is still greater than minimum excess power '
-                                  f'({PvExcessControl.min_excess_power} W) - Doing nothing.')
-
+                        if avg_excess_power > PvExcessControl.min_excess_power:
+                            log.debug(f'{log_prefix} Average Excess Power ({avg_excess_power} W) is still greater than minimum excess power '
+                                      f'({PvExcessControl.min_excess_power} W) - Doing nothing.')
 
                 else:
                     if _get_state(inst.appliance_switch) != 'off':
@@ -612,4 +630,27 @@ class PvExcessControl:
                 inst = e['instance']
                 self.switch_off(inst)
             return True
+        return False
+
+    def _run_anyway(self, inst, current_run_time, avg_excess_power):
+        """
+        Calculates if the remaining solar power forecast is below the predicted usage
+        :param inst:        PVExcesscontrol Class instance
+        :return:            True if force charge is necessary, False otherwise
+        """
+        defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
+        projected_future_power_usage = -1 * (defined_power * ((current_run_time - inst.appliance_minimum_run_time) / 60)) / 1000
+        remaining_forecast = _get_num_state(PvExcessControl.solar_production_forecast, return_on_error=0)
+
+        log.debug(f'{inst.log_prefix} Projected to use {projected_future_power_usage:.3f}kWh out of {remaining_forecast:.1f}kWh')
+
+        if projected_future_power_usage >= remaining_forecast:
+            # If we get here then the appliance is expected to use more
+            # electricity to hit the minimum run time then the solar
+            # production for the rest of the day
+            # So we want to run if there is any excess power, otherwise we
+            # have to run later at night
+            if avg_excess_power > 0:
+                return True
+
         return False

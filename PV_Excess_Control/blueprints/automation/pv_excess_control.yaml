@@ -138,9 +138,7 @@ blueprint:
       name: "*Remaining* solar production forecast (Solcast)"
       description: "Sensor which represents the **remaining solar production forecast** for the current day (in kWh). Will be used to ensure the specified *minimum home battery level* is reached at the end of the day.\n\n
       **[WARNING]**\n
-      - **This sensor must be the same for all your created automations based on this blueprint!**\n\n
-      **[NOTE]**\n
-      - If your solar system is not coupled with a battery, leave this field empty"
+      - **This sensor must be the same for all your created automations based on this blueprint!**\n"
       default:
       selector:
         entity:

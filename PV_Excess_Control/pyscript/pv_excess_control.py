@@ -162,7 +162,7 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
                       min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                       max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                       actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
-                      home_battery_capacity, solar_production_forecast, appliance_once_only, appliance_maximum_run_time,
+                      home_battery_capacity, solar_production_forecast, time_of_sunset, appliance_once_only, appliance_maximum_run_time,
                       appliance_minimum_run_time):
 
     automation_id = automation_id[11:] if automation_id[:11] == 'automation.' else automation_id
@@ -174,7 +174,7 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
                                                      dynamic_current_appliance, appliance_phases, min_current,
                                                      max_current, appliance_switch, appliance_switch_interval,
                                                      appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
-                                                     grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast,
+                                                     grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast, time_of_sunset,
                                                      appliance_once_only, appliance_maximum_run_time, appliance_minimum_run_time)
 
 
@@ -194,6 +194,7 @@ class PvExcessControl:
     import_export_power = None
     home_battery_capacity = None
     solar_production_forecast = None
+    time_of_sunset = None
     min_home_battery_level = None
     # Exported Power history
     export_history = [0]*60
@@ -213,7 +214,7 @@ class PvExcessControl:
                  min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                  max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                  actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
-                 home_battery_capacity, solar_production_forecast, appliance_once_only, appliance_maximum_run_time,
+                 home_battery_capacity, solar_production_forecast, time_of_sunset, appliance_once_only, appliance_maximum_run_time,
                  appliance_minimum_run_time):
         self.automation_id = automation_id
         self.appliance_priority = int(appliance_priority)
@@ -225,6 +226,7 @@ class PvExcessControl:
         PvExcessControl.import_export_power = import_export_power
         PvExcessControl.home_battery_capacity = home_battery_capacity
         PvExcessControl.solar_production_forecast = solar_production_forecast
+        PvExcessControl.time_of_sunset = time_of_sunset
         PvExcessControl.min_home_battery_level = float(min_home_battery_level)
         self.dynamic_current_appliance = bool(dynamic_current_appliance)
         self.min_current = float(min_current)
@@ -640,11 +642,23 @@ class PvExcessControl:
         """
         defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
         projected_future_power_usage = -1 * (defined_power * ((current_run_time - inst.appliance_minimum_run_time) / 60)) / 1000
+
         remaining_forecast = _get_num_state(PvExcessControl.solar_production_forecast, return_on_error=0)
 
-        log.debug(f'{inst.log_prefix} Projected to use {projected_future_power_usage:.3f}kWh out of {remaining_forecast:.1f}kWh')
+        sunset_string = _get_state(PvExcessControl.time_of_sunset)
+        sunset_time = datetime.datetime.fromisoformat(sunset_string)
+        time_now = datetime.datetime.now(datetime.timezone.utc)
+        time_of_sunset = (sunset_time - time_now).total_seconds() / (60 * 60)
 
-        if projected_future_power_usage >= remaining_forecast:
+        log.debug(f'{inst.log_prefix} {time_of_sunset} hours of sunlight remaining')
+
+        # Assume roughly 500W usage for the remaining daylight hours
+        remaining_usage = time_of_sunset * 0.5
+        remaining_power = remaining_forecast - remaining_usage
+
+        log.info(f'{inst.log_prefix} Projected to use {projected_future_power_usage:.3f}kWh out of {remaining_power:.1f}kWh')
+
+        if projected_future_power_usage >= remaining_power:
             # If we get here then the appliance is expected to use more
             # electricity to hit the minimum run time then the solar
             # production for the rest of the day

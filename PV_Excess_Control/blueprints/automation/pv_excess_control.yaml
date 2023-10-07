@@ -145,6 +145,14 @@ blueprint:
           domain: sensor
           multiple: false
 
+    time_of_sunset:
+      name: "The time of sunset at the current location "
+      description: "The time of sunset in the current location. You can use `sensor.sun_next_setting`"
+      default:
+      selector:
+        entity:
+          domain: sensor
+          multiple: false
 
     appliance_switch:
       name: "Appliance Entity"
@@ -312,6 +320,7 @@ action:
       import_export_power: !input import_export_power
       home_battery_capacity: !input home_battery_capacity
       solar_production_forecast: !input solar_production_forecast
+      time_of_sunset: !input time_of_sunset
       appliance_once_only: !input appliance_once_only
       appliance_maximum_run_time: !input appliance_maximum_run_time
       appliance_minimum_run_time: !input appliance_minimum_run_time

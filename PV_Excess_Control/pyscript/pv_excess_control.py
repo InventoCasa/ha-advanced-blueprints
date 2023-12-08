@@ -652,11 +652,22 @@ class PvExcessControl:
 
         log.debug(f'{inst.log_prefix} {time_of_sunset} hours of sunlight remaining')
 
-        # Assume roughly 500W usage for the remaining daylight hours
-        remaining_usage = time_of_sunset * 0.5
+        try:
+            if PvExcessControl.import_export_power:
+                # Calc values based on combined import/export power sensor
+                import_export = _get_num_state(PvExcessControl.import_export_power)
+                load_power = _get_num_state(PvExcessControl.pv_power) + import_export
+            else:
+                # Calc values based on separate sensors
+                load_power = _get_num_state(PvExcessControl.load_power)
+        except:
+            log.error(f'Could not get the current load power, using default of 500')
+            load_power = 500
+
+        remaining_usage = time_of_sunset * load_power / 1000
         remaining_power = remaining_forecast - remaining_usage
 
-        log.info(f'{inst.log_prefix} Projected to use {projected_future_power_usage:.3f}kWh out of {remaining_power:.1f}kWh')
+        log.info(f'{inst.log_prefix} Projected to use {projected_future_power_usage:.3f}kWh out of {remaining_power:.1f}kWh and excess power is {avg_excess_power:.1f}')
 
         if projected_future_power_usage >= remaining_power:
             # If we get here then the appliance is expected to use more

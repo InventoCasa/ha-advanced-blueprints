@@ -412,7 +412,7 @@ class PvExcessControl:
                 export_limited = True
                 pv_pow = int(_get_num_state(PvExcessControl.pv_power))  # Current pv power being generated
                 pv_forecast = int(_get_num_state(PvExcessControl.pv_power_forecast)) # solcast hourly forecast for right now
-                estimate_pv_pow = abs(min(0,pv_forecast - pv_power))
+                estimate_pv_pow = abs(min(0,pv_forecast - pv_pow))
                 log.debug(f'Export Limiting estimated excess power: {estimate_pv_pow}')
             if PvExcessControl.import_export_power:
                 # Calc values based on combined import/export power sensor
@@ -427,7 +427,7 @@ class PvExcessControl:
         except Exception as e:
             log.error(f'Could not update Export/PV history!: {e}')
         else:
-            if export_limiting:
+            if export_limited:
                 excess_pwr = excess_pwr + estimate_pv_pow
                 log.debug(f'Export Limiting estimated excess power: {excess_pwr}')
             PvExcessControl.export_history_buffer.append(export_pwr)

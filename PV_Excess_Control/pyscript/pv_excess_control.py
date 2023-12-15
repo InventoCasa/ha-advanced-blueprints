@@ -147,7 +147,7 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
                       min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                       max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                       actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
-                      home_battery_capacity, solar_production_forecast, appliance_once_only):
+                      home_battery_capacity, solar_production_forecast, appliance_once_only, pv_power_forecast):
 
     automation_id = automation_id[11:] if automation_id[:11] == 'automation.' else automation_id
     automation_id = _replace_vowels(f"automation.{automation_id.strip().replace(' ', '_').lower()}")
@@ -159,7 +159,7 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
                                                      max_current, appliance_switch, appliance_switch_interval,
                                                      appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
                                                      grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast,
-                                                     appliance_once_only)
+                                                     appliance_once_only, pv_power_forecast)
 
 
 
@@ -172,6 +172,7 @@ class PvExcessControl:
     trigger = None
     export_power = None
     pv_power = None
+    pv_power_forecast = None
     load_power = None
     home_battery_level = None
     grid_voltage = None
@@ -198,11 +199,12 @@ class PvExcessControl:
                  min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                  max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                  actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
-                 home_battery_capacity, solar_production_forecast, appliance_once_only):
+                 home_battery_capacity, solar_production_forecast, appliance_once_only, pv_power_forecast):
         self.automation_id = automation_id
         self.appliance_priority = int(appliance_priority)
         PvExcessControl.export_power = export_power
         PvExcessControl.pv_power = pv_power
+        PvExcessControl.pv_power_forecast = pv_power_forecast
         PvExcessControl.load_power = load_power
         PvExcessControl.home_battery_level = home_battery_level
         PvExcessControl.grid_voltage = grid_voltage
@@ -404,6 +406,14 @@ class PvExcessControl:
         Update Export and PV history
         """
         try:
+            export_limited = False
+            if pvExcessControl.pv_power_forecast:
+                # export limited, so we need to estimate excess PV power generated
+                export_limited = True
+                pv_pow = int(_get_num_state(PvExcessControl.pv_power))  # Current pv power being generated
+                pv_forecast = int(_get_num_state(PvExcessControl.pv_power_forecast)) # solcast hourly forecast for right now
+                estimate_pv_pow = abs(min(0,pv_forecast - pv_power))
+                log.debug(f'Export Limiting estimated excess power: {estimate_pv_pow}')
             if PvExcessControl.import_export_power:
                 # Calc values based on combined import/export power sensor
                 import_export = int(_get_num_state(PvExcessControl.import_export_power))
@@ -417,6 +427,9 @@ class PvExcessControl:
         except Exception as e:
             log.error(f'Could not update Export/PV history!: {e}')
         else:
+            if export_limiting:
+                excess_pwr = excess_pwr + estimate_pv_pow
+                log.debug(f'Export Limiting estimated excess power: {excess_pwr}')
             PvExcessControl.export_history_buffer.append(export_pwr)
             PvExcessControl.pv_history_buffer.append(excess_pwr)
 

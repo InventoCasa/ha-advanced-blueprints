@@ -47,6 +47,21 @@ blueprint:
         entity:
           domain: sensor
           multiple: false
+
+    pv_power_forecast:
+      name: "Estimate of PV power for the current hour forecast (Solcast)"
+      description: "Sensor which represents the **estimate of the PV power generated** for the current hour (in W). Will be used to calculate excess power when export limiting is in place by your power provider.\n\n
+      **[WARNING]**\n
+      - **This sensor must be the same for all your created automations based on this blueprint!**\n\n
+      **[NOTE]**\n
+      - If you are not export limited by your power provider leave this field empty"
+      default:
+      selector:
+        entity:
+          domain: sensor
+          multiple: false
+
+          
     export_power:
       name: "Export Power"
       description: "Sensor which contains your current **export power to the grid** in watts.\nMust not be negative! For best results, this sensor should be updated at least every minute.\n\n 
@@ -293,3 +308,4 @@ action:
       home_battery_capacity: !input home_battery_capacity
       solar_production_forecast: !input solar_production_forecast
       appliance_once_only: !input appliance_once_only
+      pv_power_forecast: !input pv_power_forecast

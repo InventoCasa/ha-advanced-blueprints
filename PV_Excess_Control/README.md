@@ -13,11 +13,17 @@ If you like my work, you can support me here:\
 :white_check_mark: Define min. and max. current for appliances supporting dynamic current control\
 :white_check_mark: Supports one- and three-phase appliances\
 :white_check_mark: Supports *Only-Switch-On* devices like washing machines or dishwashers
+:white_check_mark: Supports *Export Limited PV generation systems* where excess power to the grid is limited by the power provider.
 
 
 ## Prerequisites
 - A working installation of [pyscript](https://github.com/custom-components/pyscript) (can be installed via [HACS](https://hacs.xyz/))
 - (*Optional:* A working installation of solcast (can be installed via [HACS custom repository](https://github.com/oziee/ha-solcast-solar))
+- *Optional:* A working installation of forecast.solar, this is used by PV systems that are export limited.  
+  - Enable the "Estimate power available this hour" entity as this is disabled by default within the forecast.solar integration (I've had better success with the next hour estimate, your milage may vary, so experiment and find what works best for you)
+  - The forecast sensor must be in W.
+  - If you have multiple panel arrays, combine each of the forecasts into a single sensor and use the combined sensor.
+  - Depending on how much you are export limited by the power provider, there is the pyscript code variable "pv_forecast_threshold" adjust this threshold to cutover to real excess power export as reported by your system, defaults to 1000W 
 - Home Assistant v2023.1 or greater
 - Access to the following values from your hybrid PV inverter:
   - Export power

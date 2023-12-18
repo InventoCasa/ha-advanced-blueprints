@@ -49,7 +49,7 @@ blueprint:
           multiple: false
 
     pv_power_forecast:
-      name: "Estimate of PV power for the current hour forecast (Solcast)"
+      name: "Estimate of PV power for the current hour forecast (Forecast.Solar)"
       description: "Sensor which represents the **estimate of the PV power generated** for the current hour (in W). Will be used to calculate excess power when export limiting is in place by your power provider.\n\n
       **[WARNING]**\n
       - **This sensor must be the same for all your created automations based on this blueprint!**\n\n

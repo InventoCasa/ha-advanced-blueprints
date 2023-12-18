@@ -193,6 +193,8 @@ class PvExcessControl:
     #  situations.
     min_excess_power = -10
     on_time_counter = 0
+    # Minimium power (w) that forecast will be used, then cuts over to real export power 
+    pv_forecast_threshold = 1000
 
 
     def __init__(self, automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
@@ -408,12 +410,12 @@ class PvExcessControl:
         try:
             export_limited = False
             if pvExcessControl.pv_power_forecast:
-                # export limited, so we need to estimate excess PV power generated
+                # export limited, so we need to estimate excess PV power available from forecast
                 export_limited = True
                 pv_pow = int(_get_num_state(PvExcessControl.pv_power))  # Current pv power being generated
-                pv_forecast = int(_get_num_state(PvExcessControl.pv_power_forecast)) # solcast hourly forecast for right now
-                estimate_pv_pow = abs(min(0,pv_forecast - pv_pow))
-                log.debug(f'Export Limiting estimated excess power: {estimate_pv_pow}')
+                pv_forecast = int(_get_num_state(PvExcessControl.pv_power_forecast)) # PV forecast for right now
+                estimate_pv_pow = pv_forecast - pv_pow
+                log.debug(f'Export Limiting estimated excess power available: {estimate_pv_pow}')
             if PvExcessControl.import_export_power:
                 # Calc values based on combined import/export power sensor
                 import_export = int(_get_num_state(PvExcessControl.import_export_power))
@@ -428,7 +430,8 @@ class PvExcessControl:
             log.error(f'Could not update Export/PV history!: {e}')
         else:
             if export_limited:
-                excess_pwr = excess_pwr + estimate_pv_pow
+                if excess_pwr > PvExcessControl.pv_forecast_threshold:
+                    excess_pwr = max(excess_pwr, estimate_pv_pow)
                 log.debug(f'Export Limiting estimated excess power: {excess_pwr}')
             PvExcessControl.export_history_buffer.append(export_pwr)
             PvExcessControl.pv_history_buffer.append(excess_pwr)

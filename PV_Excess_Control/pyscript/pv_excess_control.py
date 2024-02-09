@@ -4,9 +4,6 @@
 # -------------------------------------------------
 from typing import Union
 
-class_instances = {}
-
-
 
 def _get_state(entity_id: str) -> Union[str, None]:
     """
@@ -153,13 +150,13 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
     automation_id = _replace_vowels(f"automation.{automation_id.strip().replace(' ', '_').lower()}")
 
 
-    class_instances[automation_id] = PvExcessControl(automation_id, appliance_priority, export_power, pv_power,
-                                                     load_power, home_battery_level, min_home_battery_level,
-                                                     dynamic_current_appliance, appliance_phases, min_current,
-                                                     max_current, appliance_switch, appliance_switch_interval,
-                                                     appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
-                                                     grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast,
-                                                     appliance_once_only)
+    PvExcessControl(automation_id, appliance_priority, export_power, pv_power,
+                    load_power, home_battery_level, min_home_battery_level,
+                    dynamic_current_appliance, appliance_phases, min_current,
+                    max_current, appliance_switch, appliance_switch_interval,
+                    appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
+                    grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast,
+                    appliance_once_only)
 
 
 
@@ -169,7 +166,6 @@ class PvExcessControl:
     #  - Make min_excess_power configurable via blueprint
     #  - Implement updating of pv sensors history more often. E.g. every 10secs, and averaging + adding to history every minute.
     instances = {}
-    trigger = None
     export_power = None
     pv_power = None
     load_power = None
@@ -228,14 +224,14 @@ class PvExcessControl:
         self.log_prefix = f'[{self.appliance_switch} (Prio {self.appliance_priority})]'
         self.domain = self.appliance_switch.split('.')[0]
 
-        # Make sure trigger method is only registered once
-        if PvExcessControl.trigger is None:
-            PvExcessControl.trigger = self.trigger_factory()
-        # Add self to class dict and sort by priority (highest to lowest)
-        PvExcessControl.instances[self.automation_id] = {'instance': self, 'priority': self.appliance_priority}
+        # start if needed
+        if self.automation_id not in PvExcessControl.instances:
+            self.trigger_factory()
+            log.info(f'{self.log_prefix} Trigger Method started.')
+            # Add self to class dict and sort by priority (highest to lowest)
+            PvExcessControl.instances[self.automation_id] = {'instance': self, 'priority': self.appliance_priority}
         PvExcessControl.instances = dict(sorted(PvExcessControl.instances.items(), key=lambda item: item[1]['priority'], reverse=True))
         log.info(f'{self.log_prefix} Registered appliance.')
-
 
     def trigger_factory(self):
         # trigger every 10s
@@ -244,6 +240,12 @@ class PvExcessControl:
             # Sanity check
             if not self.sanity_check():
                 return on_time
+                
+            # execute only if this the first instance of the dictionary (avoid two automations acting)
+            #log.info(f'{self.log_prefix} I am around.')
+            first_item = next(iter(PvExcessControl.instances.values()))
+            if first_item["instance"] != self:
+                return on_time                
 
             PvExcessControl.on_time_counter += 1
             PvExcessControl._update_pv_history()

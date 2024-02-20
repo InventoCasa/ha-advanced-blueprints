@@ -1,10 +1,11 @@
 blueprint:
-  name: INVENTOCASA - PV Excess Optimizer
+  name: PV Excess Optimizer changed by Stefan73 based on Inventocasa
   description: "### **PV EXCESS OPTIMIZER**\nAutomatically control your appliances based on excess power from your solar system <br> <br>
+  &rarr; This is a further developed version of Inventocasa's script.\n
+  &rarr; I hope changes will be pulled into the original project. In the mean time, I try to push developments here.\n
   &rarr; Remember to read the **[README](https://github.com/InventoCasa/ha-advanced-blueprints/blob/main/PV_Excess_Control/README.md)** for prerequisites and installation instructions\n
   &rarr; If you need help, head over to the [thread in the HA community forum](https://community.home-assistant.io/t/pv-solar-excess-optimizer-auto-control-appliances-wallbox-dish-washer-heatpump-based-on-excess-solar-power/552677)\n
-  &rarr; Bugs and feature requests can be created directly on the [GitHub repository](https://github.com/InventoCasa/ha-advanced-blueprints)\n\n
-  &rarr; If you want to say *thank you* for this blueprint, you can do so by buying me a [*virtual coffee*](https://www.buymeacoffee.com/henrikIC)\n <br><br>"
+  &rarr; Bugs and feature requests can be created directly on the [GitHub repository](https://github.com/InventoCasa/ha-advanced-blueprints)\n <br><br>"
 
   domain: automation
   input:
@@ -29,13 +30,15 @@ blueprint:
 
     grid_voltage:
       name: "Mains Voltage"
-      description: "The voltage of your household electrical grid (**not** your appliance!).\nTypically 230V for most of EU, 110V for US.\n\n 
+      description: "The voltage of your household electrical grid (**not** your appliance!).\n
+      Set this rather to the higher limit of the voltage range to avoid underestimation of power values.
+      Use 240V for most of EU, 120V for US (10V higher than nominal).\n\n 
       **[WARNING]**\n- **This value must be the same for all your created automations based on this blueprint!**"
-      default: 230
+      default: 240
       selector:
         number:
-          min: 110
-          max: 240
+          min: 100
+          max: 250
           mode: box
           unit_of_measurement: "V"
 
@@ -79,7 +82,7 @@ blueprint:
       **[WARNING]**\n
       - **This sensor must be the same for all your created automations based on this blueprint!**\n
       - **This sensor may only be specified when you cannot provide both the *Export Power* and *Load Power* sensor! This is normally the case when you have a standard inverter without battery.**\n
-      - **Do not use this sensor when you have a hybrid inverter with battery. Otherwise the script cannot detect when your battery is discharging to compensate for a load!**\n\n
+      - **You can use this also with a hybrid inverter with battery, if Load Power can be provided and does NOT contain the power charged to the battery!**\n\n
       **[NOTE]**\n
       - This is typically the value your household energy meter shows."
       default:
@@ -185,7 +188,9 @@ blueprint:
 
     dynamic_current_appliance:
       name: "Dynamic current control"
-      description: "Tick this box if your appliance supports different current levels.\nUseful e.g. for **wallboxes**.\nIf False, the appliance will only be switched on or off in relation to the PV excess."
+      description: "Tick this box if your appliance supports different current levels.\n
+      Useful e.g. for **wallboxes**. This mode handles whole current values only according to most wallbox / OCPP implementations.\n
+      If False, the appliance will only be switched on or off in relation to the PV excess."
       default: False
       selector:
         boolean:
@@ -209,9 +214,9 @@ blueprint:
       default: 6
       selector:
         number:
-          min: 0.1
+          min: 1
           max: 16
-          step: 0.1
+          step: 1
           unit_of_measurement: A
     max_current:
       name: "Maximum dynamic current"
@@ -221,9 +226,9 @@ blueprint:
       default: 16
       selector:
         number:
-          min: 0.1
+          min: 1
           max: 16
-          step: 0.1
+          step: 1
           unit_of_measurement: A
     appliance_phases:
       name: "Appliance Phases"
@@ -253,12 +258,25 @@ blueprint:
     actual_power:
       name: "Appliance actual power sensor"
       description: "Sensor which contains the **current power consumption** of the appliance in watts.\n
-      If this is left empty (not recommended), the *typical current draw* will be used instead."
+      If this is left empty, the *typical current draw* will be used instead.
+      For **wallboxes** only set a value if this sensor reacts fast (e.g. within << 1 min). Otherwise
+      leave empty. The script will then calculate the power consumption based on the current set and the voltage."
       default:
       selector:
         entity:
           domain: sensor
           multiple: false
+    power_toggle_margin:
+      name: "Appliance toggle margin"
+      description: "Additional power in Watts needed in the PV excess power to turn on the appliance. Use 200W as a default value.\n
+      This avoid on/off/on/off sequences by setting the power needed to turn the appliance on a somewhat higher. For dynamic appliances this relates only to the lowest power value."
+      default: 200
+      selector:
+        number:
+          min: 10
+          max: 1000
+          step: 1
+          unit_of_measurement: W
 
 
 
@@ -286,6 +304,7 @@ action:
       appliance_switch_interval: !input appliance_switch_interval
       appliance_current_set_entity: !input appliance_current_set_entity
       actual_power: !input actual_power
+      power_toggle_margin: !input power_toggle_margin
       defined_current: !input defined_current
       appliance_on_only: !input appliance_on_only
       grid_voltage: !input grid_voltage

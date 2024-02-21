@@ -144,8 +144,8 @@ def reset_midnight():
 def pv_excess_control(automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
                       min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                       max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
-                      actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
-                      home_battery_capacity, solar_production_forecast, appliance_once_only):
+                      actual_power, power_toggle_margin, defined_current, appliance_on_only, grid_voltage, import_export_power,
+                      home_battery_capacity, inverter_limit, solar_production_forecast, appliance_once_only):
 
     automation_id = automation_id[11:] if automation_id[:11] == 'automation.' else automation_id
     automation_id = _replace_vowels(f"automation.{automation_id.strip().replace(' ', '_').lower()}")
@@ -154,8 +154,8 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
                     load_power, home_battery_level, min_home_battery_level,
                     dynamic_current_appliance, appliance_phases, min_current,
                     max_current, appliance_switch, appliance_switch_interval,
-                    appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
-                    grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast,
+                    appliance_current_set_entity, actual_power, power_toggle_margin, defined_current, appliance_on_only,
+                    grid_voltage, import_export_power, home_battery_capacity, inverter_limit, solar_production_forecast,
                     appliance_once_only)
 
 
@@ -173,6 +173,7 @@ class PvExcessControl:
     grid_voltage = None
     import_export_power = None
     home_battery_capacity = None
+    inverter_limit = None
     solar_production_forecast = None
     min_home_battery_level = None
     # Exported Power history
@@ -193,8 +194,8 @@ class PvExcessControl:
     def __init__(self, automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
                  min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                  max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
-                 actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
-                 home_battery_capacity, solar_production_forecast, appliance_once_only):
+                 actual_power, power_toggle_margin, defined_current, appliance_on_only, grid_voltage, import_export_power,
+                 home_battery_capacity, inverter_limit, solar_production_forecast, appliance_once_only):
         self.automation_id = automation_id
         self.appliance_priority = int(appliance_priority)
         PvExcessControl.export_power = export_power
@@ -204,6 +205,7 @@ class PvExcessControl:
         PvExcessControl.grid_voltage = grid_voltage
         PvExcessControl.import_export_power = import_export_power
         PvExcessControl.home_battery_capacity = home_battery_capacity
+        PvExcessControl.inverter_limit = inverter_limit
         PvExcessControl.solar_production_forecast = solar_production_forecast
         PvExcessControl.min_home_battery_level = float(min_home_battery_level)
         self.dynamic_current_appliance = bool(dynamic_current_appliance)
@@ -213,6 +215,7 @@ class PvExcessControl:
         self.appliance_switch_interval = int(appliance_switch_interval)
         self.appliance_current_set_entity = appliance_current_set_entity
         self.actual_power = actual_power
+        self.power_toggle_margin = power_toggle_margin
         self.defined_current = float(defined_current)
         self.appliance_on_only = bool(appliance_on_only)
         self.appliance_once_only = appliance_once_only
@@ -275,10 +278,11 @@ class PvExcessControl:
                     home_battery_level = _get_num_state(PvExcessControl.home_battery_level)
                 if home_battery_level >= PvExcessControl.min_home_battery_level or not self._force_charge_battery():
                     # home battery charge is high enough to direct solar power to appliances, if solar power is higher than load power
-                    # calc avg based on pv excess (solar power - load power) according to specified window
-										# original code used average here - this has two issues:
+                    # calc min based on pv excess (solar power - load power) according to specified window
+                    # original code used average here - this has two issues:
                     # 1. wallboxes / car chargers as dynamic appliances do not toggle power immediately - average overestimates pv excess power
-                    # 2. average is prone create overshoots with fluctuations in pv power                     avg_excess_power = int(min(PvExcessControl.pv_history[-inst.appliance_switch_interval:]))
+                    # 2. average is prone create overshoots with fluctuations in pv power
+                    avg_excess_power = int(min(PvExcessControl.pv_history[-inst.appliance_switch_interval:]))
                     log.debug(f'{log_prefix} Home battery charge is sufficient ({home_battery_level}/{PvExcessControl.min_home_battery_level} %)'
                               f' OR remaining solar forecast is higher than remaining capacity of home battery. '
                               f'Calculated average excess power based on >> solar power - load power <<: {avg_excess_power} W')
@@ -286,7 +290,7 @@ class PvExcessControl:
                 else:
                     # home battery charge is not yet high enough OR battery force charge is necessary.
                     # Only use excess power (which would otherwise be exported to the grid) for appliance
-                    # calc minimum based on export power history according to specified window
+                    # calc min based on export power history according to specified window
                     avg_excess_power = int(min(PvExcessControl.export_history[-inst.appliance_switch_interval:]))
                     log.debug(f'{log_prefix} Home battery charge is not sufficient ({home_battery_level}/{PvExcessControl.min_home_battery_level} %), '
                               f'OR remaining solar forecast is lower than remaining capacity of home battery. '
@@ -320,8 +324,8 @@ class PvExcessControl:
                         log.warning(f'{log_prefix} Appliance state (={_get_state(inst.appliance_switch)}) is neither ON nor OFF. '
                                     f'Assuming OFF state.')
                     defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
-                    # have a trigger margin of 200W - this should be configurable in future - avoid on/off sequences
-                    if avg_excess_power >= defined_power+200:
+                    ## add margin to avoid on/off sequences
+                    if avg_excess_power >= defined_power+inst.power_toggle_margin:
                         log.debug(f'{log_prefix} Average Excess power is high enough to switch on appliance.')
                         if inst.switch_interval_counter >= inst.appliance_switch_interval:
                             self.switch_on(inst)
@@ -360,7 +364,7 @@ class PvExcessControl:
                                 actual_current = _get_num_state(inst.appliance_current_set_entity, return_on_error=inst.min_current)
                             else:
                                 actual_current = round(_get_num_state(inst.actual_power) / (PvExcessControl.grid_voltage * inst.phases), 1)
-														# round down to avoid overshooting
+                            # round down to avoid overshooting
                             diff_current = math.floor(avg_excess_power / (PvExcessControl.grid_voltage * inst.phases))
                             target_current = max(inst.min_current, actual_current + diff_current)
                             log.debug(f'{log_prefix} {actual_current=}A | {diff_current=}A | {target_current=}A')
@@ -377,7 +381,7 @@ class PvExcessControl:
                                 self._adjust_pwr_history(inst, diff_power)
                             else:
                                 # current cannot be reduced
-                                # turn off appliance
+                                # turn off appliance & set current to min                                
                                 _set_value(inst.appliance_current_set_entity, inst.min_current)
                                 power_consumption = self.switch_off(inst)
                                 if power_consumption != 0:
@@ -413,15 +417,19 @@ class PvExcessControl:
         Update Export and PV history
         """
         try:
+            current_pv_pwr = _get_num_state(PvExcessControl.pv_power)
+            # check if pv power may be limited by max inverter power
+            if PvExcessControl.inverter_limit is not None and PvExcessControl.inverter_limit>0 and current_pv_pwr>PvExcessControl.inverter_limit*1000:
+                current_pv_pwr = PvExcessControl.inverter_limit*1000
             if PvExcessControl.import_export_power:
                 # Calc values based on combined import/export power sensor
                 import_export = int(_get_num_state(PvExcessControl.import_export_power))
                 export_pwr = abs(min(0, import_export))
-                excess_pwr = int(_get_num_state(PvExcessControl.pv_power) - _get_num_state(PvExcessControl.load_power))
+                excess_pwr = int(current_pv_pwr - _get_num_state(PvExcessControl.load_power))
             else:
                 # Calc values based on separate sensors
                 export_pwr = int(_get_num_state(PvExcessControl.export_power))
-                excess_pwr = int(_get_num_state(PvExcessControl.pv_power) - _get_num_state(PvExcessControl.load_power))
+                excess_pwr = int(current_pv_pwr - _get_num_state(PvExcessControl.load_power))
         except Exception as e:
             log.error(f'Could not update Export/PV history!: {e}')
         else:
@@ -430,7 +438,7 @@ class PvExcessControl:
 
         log.debug(f'Export History Buffer: {PvExcessControl.export_history_buffer}')
         log.debug(f'PV Excess (PV Power - Load Power) History Buffer: {PvExcessControl.pv_history_buffer}')
-        #log.debug(f'PV Power: {_get_num_state(PvExcessControl.pv_power)}')
+        #log.debug(f'PV Power: {current_pv_pwr}')
         #log.debug(f'Load Power: {_get_num_state(PvExcessControl.load_power)}')
         #log.debug(f'Export Power: {export_pwr}')
 

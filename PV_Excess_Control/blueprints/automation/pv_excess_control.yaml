@@ -137,6 +137,22 @@ blueprint:
           step: 0.5
           unit_of_measurement: kWh
 
+    inverter_limit:
+      name: "Inverter Limited PV production"
+      description: "The maximum inverter power in kW for inverter limits PV production\n\n
+      **[WARNING]**\n
+      - **This sensor must be the same for all your created automations based on this blueprint!**\n\n
+      **[NOTE]**\n
+      - If your solar system has more PV power / panels connected than the inverter can output as AC, provide the max inverter power here.\n
+      - Use zero for systems without this limit."
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 0.5
+          unit_of_measurement: kW
+
     solar_production_forecast:
       name: "*Remaining* solar production forecast (Solcast)"
       description: "Sensor which represents the **remaining solar production forecast** for the current day (in kWh). Will be used to ensure the specified *minimum home battery level* is reached at the end of the day.\n\n
@@ -310,5 +326,6 @@ action:
       grid_voltage: !input grid_voltage
       import_export_power: !input import_export_power
       home_battery_capacity: !input home_battery_capacity
+      inverter_limit: !input inverter_limit
       solar_production_forecast: !input solar_production_forecast
       appliance_once_only: !input appliance_once_only

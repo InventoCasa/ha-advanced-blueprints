@@ -238,10 +238,9 @@ class PvExcessControl:
         @time_trigger('period(now, 10s)')
         def on_time():
             # Sanity check
-            if not self.sanity_check():
+            if not (PvExcessControl.instances or self.sanity_check()):
                 return on_time
-            if not PvExcessControl.instances:  
-                return on_time     
+   
             # execute only if this the first instance of the dictionary (avoid two automations acting)
             #log.info(f'{self.log_prefix} I am around.')
             first_item = next(iter(PvExcessControl.instances.values()))

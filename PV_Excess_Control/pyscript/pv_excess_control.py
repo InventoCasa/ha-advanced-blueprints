@@ -240,7 +240,9 @@ class PvExcessControl:
             # Sanity check
             if (not PvExcessControl.instances) or (not self.sanity_check()):
                 return on_time
-
+                
+            # execute only if this the first instance of the dictionary (avoid two automations acting)
+            #log.info(f'{self.log_prefix} I am around.')
             first_item = next(iter(PvExcessControl.instances.values()))
             if first_item["instance"] != self:
                 return on_time                
@@ -276,7 +278,6 @@ class PvExcessControl:
                     log.debug(f'{log_prefix} Home battery charge is sufficient ({home_battery_level}/{PvExcessControl.min_home_battery_level} %)'
                               f' OR remaining solar forecast is higher than remaining capacity of home battery. '
                               f'Calculated average excess power based on >> solar power - load power <<: {avg_excess_power} W')
-                    #          f' inst.appliance_switch_interval {inst.appliance_switch_interval}'
 
                 else:
                     # home battery charge is not yet high enough OR battery force charge is necessary.

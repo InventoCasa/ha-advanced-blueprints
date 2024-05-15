@@ -381,11 +381,6 @@ class PvExcessControl:
                             else:
                                 # current cannot be reduced
                                 # turn off appliance
-                                # todo: check if inst.appliance_priority > 500 and switching of will cause excess 
-                                #  if inst.actual_power is None:
-                                #    power_consumption = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
-                                #  else:
-                                #    power_consumption = _get_num_state(inst.actual_power)
                                 power_consumption = self.switch_off(inst)
                                 if power_consumption != 0:
                                     prev_consumption_sum += power_consumption

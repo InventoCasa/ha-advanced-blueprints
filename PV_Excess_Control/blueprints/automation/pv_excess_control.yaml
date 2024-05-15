@@ -384,7 +384,7 @@ blueprint:
       description: >
         Sensor which contains the **current power consumption** of the appliance in watts.
 
-        If this is left empty (not recommended), the *typical current draw* will be used instead."
+        If this is left empty (not recommended), the *typical current draw* will be used instead.
       default:
       selector:
         entity:

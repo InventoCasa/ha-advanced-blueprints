@@ -229,7 +229,7 @@ class PvExcessControl:
             self.trigger_factory()
             log.info(f'{self.log_prefix} Trigger Method started.')
             # Add self to class dict and sort by priority (highest to lowest)
-            PvExcessControl.instances[self.automation_id] = {'instance': self, 'priority': self.appliance_priority}
+        PvExcessControl.instances[self.automation_id] = {'instance': self, 'priority': self.appliance_priority}
         PvExcessControl.instances = dict(sorted(PvExcessControl.instances.items(), key=lambda item: item[1]['priority'], reverse=True))
         log.info(f'{self.log_prefix} Registered appliance.')
 

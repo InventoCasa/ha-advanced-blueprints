@@ -234,7 +234,7 @@ class PvExcessControl:
             PvExcessControl.instances[inst.automation_id] = {'instance': inst, 'priority': inst.appliance_priority}
             log.info(f'{self.log_prefix} Trigger Method started.')
         PvExcessControl.instances = dict(sorted(PvExcessControl.instances.items(), key=lambda item: item[1]['priority'], reverse=True))
-        log.info(f'{inst.log_prefix} Registered appliance. currently {len(PvExcessControl.instances)} instances')
+        log.info(f'{inst.log_prefix} Registered appliance.')
 
     def trigger_factory(self):
         # trigger every 10s

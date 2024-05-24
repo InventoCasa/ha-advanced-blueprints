@@ -195,8 +195,12 @@ class PvExcessControl:
                  max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                  actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
                  home_battery_capacity, solar_production_forecast, appliance_once_only):
-        self.automation_id = automation_id
-        self.appliance_priority = int(appliance_priority)
+        if automation_id not in PvExcessControl.instances:
+            inst = self
+        else:
+            inst = PvExcessControl.instances[automation_id]['instance']
+        inst.automation_id = automation_id
+        inst.appliance_priority = int(appliance_priority)
         PvExcessControl.export_power = export_power
         PvExcessControl.pv_power = pv_power
         PvExcessControl.load_power = load_power
@@ -206,32 +210,31 @@ class PvExcessControl:
         PvExcessControl.home_battery_capacity = home_battery_capacity
         PvExcessControl.solar_production_forecast = solar_production_forecast
         PvExcessControl.min_home_battery_level = float(min_home_battery_level)
-        self.dynamic_current_appliance = bool(dynamic_current_appliance)
-        self.min_current = float(min_current)
-        self.max_current = float(max_current)
-        self.appliance_switch = appliance_switch
-        self.appliance_switch_interval = int(appliance_switch_interval)
-        self.appliance_current_set_entity = appliance_current_set_entity
-        self.actual_power = actual_power
-        self.defined_current = float(defined_current)
-        self.appliance_on_only = bool(appliance_on_only)
-        self.appliance_once_only = appliance_once_only
+        inst.dynamic_current_appliance = bool(dynamic_current_appliance)
+        inst.min_current = float(min_current)
+        inst.max_current = float(max_current)
+        inst.appliance_switch = appliance_switch
+        inst.appliance_switch_interval = int(appliance_switch_interval)
+        inst.appliance_current_set_entity = appliance_current_set_entity
+        inst.actual_power = actual_power
+        inst.defined_current = float(defined_current)
+        inst.appliance_on_only = bool(appliance_on_only)
+        inst.appliance_once_only = appliance_once_only
 
-        self.phases = appliance_phases
-
-        self.switch_interval_counter = 0
-        self.switched_on_today = False
-        self.log_prefix = f'[{self.appliance_switch} (Prio {self.appliance_priority})]'
-        self.domain = self.appliance_switch.split('.')[0]
+        inst.phases = appliance_phases
+        
+        inst.log_prefix = f'[{inst.appliance_switch} {inst.automation_id} (Prio {inst.appliance_priority})]'
+        inst.domain = inst.appliance_switch.split('.')[0]
 
         # start if needed
-        if self.automation_id not in PvExcessControl.instances:
-            self.trigger_factory()
+        if inst.automation_id not in PvExcessControl.instances:
+            inst.switched_on_today = False
+            inst.switch_interval_counter = 0
+            inst.trigger_factory()
+            PvExcessControl.instances[inst.automation_id] = {'instance': inst, 'priority': inst.appliance_priority}
             log.info(f'{self.log_prefix} Trigger Method started.')
-            # Add self to class dict and sort by priority (highest to lowest)
-        PvExcessControl.instances[self.automation_id] = {'instance': self, 'priority': self.appliance_priority}
         PvExcessControl.instances = dict(sorted(PvExcessControl.instances.items(), key=lambda item: item[1]['priority'], reverse=True))
-        log.info(f'{self.log_prefix} Registered appliance.')
+        log.info(f'{inst.log_prefix} Registered appliance. currently {len(PvExcessControl.instances)} instances')
 
     def trigger_factory(self):
         # trigger every 10s

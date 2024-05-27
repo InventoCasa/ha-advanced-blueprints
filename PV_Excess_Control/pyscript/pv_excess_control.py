@@ -108,6 +108,9 @@ def _validate_number(num: Union[float, str], return_on_error: Union[float, None]
     :param return_on_error: Value to return in case of error
     :return:                Number if valid, else None
     """
+    if num is None or num == 'unavailable':
+        return return_on_error
+
     min_v = -1000000
     max_v = 1000000
     try:
@@ -408,16 +411,26 @@ class PvExcessControl:
         try:
             if PvExcessControl.import_export_power:
                 # Calc values based on combined import/export power sensor
-                import_export = int(_get_num_state(PvExcessControl.import_export_power))
+                import_export_state = _get_num_state(PvExcessControl.import_export_power)
+                if import_export_state is None:
+                    raise Exception(f'Could not update Export/PV history: {PvExcessControl.import_export_power} is None.')
+                import_export = int(import_export_state)
                 # load_pwr = pv_pwr + import_export
                 export_pwr = abs(min(0, import_export))
                 excess_pwr = -import_export
             else:
                 # Calc values based on separate sensors
-                export_pwr = int(_get_num_state(PvExcessControl.export_power))
-                excess_pwr = int(_get_num_state(PvExcessControl.pv_power) - _get_num_state(PvExcessControl.load_power))
+                export_pwr_state = _get_num_state(PvExcessControl.export_power)
+                pv_power_state = _get_num_state(PvExcessControl.pv_power)
+                load_power_state = _get_num_state(PvExcessControl.load_power)
+                if export_pwr_state is None or pv_power_state is None or load_power_state is None:
+                    raise Exception(f'Could not update Export/PV history {PvExcessControl.export_power=} | {PvExcessControl.pv_power=} | '
+                                    f'{PvExcessControl.load_power=} = {export_pwr_state=} | {pv_power_state=} | {load_power_state=}')
+                export_pwr = int(export_pwr_state)
+                excess_pwr = int(pv_power_state - load_power_state)
         except Exception as e:
             log.error(f'Could not update Export/PV history!: {e}')
+            return
         else:
             PvExcessControl.export_history_buffer.append(export_pwr)
             PvExcessControl.pv_history_buffer.append(excess_pwr)

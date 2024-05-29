@@ -309,7 +309,7 @@ class PvExcessControl:
                             # "restart" history by subtracting power difference from each history value within the specified time frame
                             self._adjust_pwr_history(inst, -diff_power)
 
-                else:
+                elif not (inst.appliance_once_only and inst.switched_on_today):
                     # check if appliance can be switched on
                     if _get_state(inst.appliance_switch) != 'off':
                         log.warning(f'{log_prefix} Appliance state (={_get_state(inst.appliance_switch)}) is neither ON nor OFF. '
@@ -469,7 +469,7 @@ class PvExcessControl:
         if inst.appliance_once_only and inst.switched_on_today:
             log.debug(f'{inst.log_prefix} "Only-Run-Once-Appliance" detected - Appliance was already switched on today - '
                       f'Not switching on again.')
-        if _turn_on(inst.appliance_switch):
+        elif _turn_on(inst.appliance_switch):
             inst.switched_on_today = True
 
     def switch_off(self, inst) -> float:

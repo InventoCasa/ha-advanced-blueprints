@@ -316,7 +316,7 @@ class PvExcessControl:
                                     f'Assuming OFF state.')
                     defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
 
-                    if avg_excess_power >= defined_power or (inst.appliance_priority > 500 and avg_excess_power > 0):
+                    if avg_excess_power >= defined_power or (inst.appliance_priority > 1000 and avg_excess_power > 0):
                         log.debug(f'{log_prefix} Average Excess power is high enough to switch on appliance.')
                         if inst.switch_interval_counter >= inst.appliance_switch_interval:
                             self.switch_on(inst)
@@ -345,8 +345,8 @@ class PvExcessControl:
 
                 # -------------------------------------------------------------------
                 if _get_state(inst.appliance_switch) == 'on':
-                    # check if inst.appliance_priority > 500 and switching of will cause excess. In that case keep it on
-                    if inst.appliance_priority > 500:
+                    # check if inst.appliance_priority > 1000 and switching of will cause excess. In that case keep it on
+                    if inst.appliance_priority > 1000:
                         if inst.actual_power is None:
                             allowed_excess_power_consumption = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
                         else:

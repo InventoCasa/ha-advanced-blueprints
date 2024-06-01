@@ -181,6 +181,9 @@ class PvExcessControl:
     # PV Excess history (PV power minus load power)
     pv_history = [0]*60
     pv_history_buffer = []
+    # PV generation history
+    pv_gen_history = [0]*60
+    pv_gen_history_buffer = []
     # Minimum excess power in watts. If the average min_excess_power at the specified appliance switch interval is greater than the actual
     #  excess power, the appliance with the lowest priority will be shut off.
     #  NOTE: Should be slightly negative, to compensate for inaccurate power corrections
@@ -254,6 +257,10 @@ class PvExcessControl:
                 return on_time
             PvExcessControl.on_time_counter = 0
 
+            # track how much power would be available for appliances if all the lower priority ones would be turned off
+            total_generated_power_available_for_appliance = PvExcessControl.pv_gen_history[-1]
+            eviction_power_needed = 0
+
             # ----------------------------------- go through each appliance (highest prio to lowest) ---------------------------------------
             # this is for determining which devices can be switched on
             instances = []
@@ -309,6 +316,8 @@ class PvExcessControl:
                             # "restart" history by subtracting power difference from each history value within the specified time frame
                             self._adjust_pwr_history(inst, -diff_power)
 
+                    total_generated_power_available_for_appliance -= self.get_power_consumption(inst)
+
                 else:
                     # check if appliance can be switched on
                     if _get_state(inst.appliance_switch) != 'off':
@@ -316,7 +325,7 @@ class PvExcessControl:
                                     f'Assuming OFF state.')
                     defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
                     if avg_excess_power >= defined_power:
-                        log.debug(f'{log_prefix} Average Excess power is high enough to switch on appliance.')
+                        log.debug(f'{log_prefix} Average Excess power is high enough to switch on appliance: {avg_excess_power} >= {defined_power}')
                         if inst.switch_interval_counter >= inst.appliance_switch_interval:
                             self.switch_on(inst)
                             inst.switch_interval_counter = 0
@@ -330,7 +339,14 @@ class PvExcessControl:
                             log.debug(f'{log_prefix} Cannot switch on appliance, because appliance switch interval is not reached '
                                       f'({inst.switch_interval_counter}/{inst.appliance_switch_interval}).')
                     else:
-                        log.debug(f'{log_prefix} Average Excess power not high enough to switch on appliance.')
+                        # average excess power is not high enough to switch on appliance, see if we can switch off lower priority appliances
+                        if defined_power > total_generated_power_available_for_appliance:
+                            log.debug(f'{log_prefix} Average Excess power not high enough to switch on appliance and we cannot make room for it: {total_generated_power_available_for_appliance} (available) < {defined_power} (defined) < {avg_excess_power} (excess)')
+                        else:
+                            log.debug(f'{log_prefix} Average Excess power not high enough to switch on appliance but we can make room for it: {total_generated_power_available_for_appliance} (available) > {defined_power} (defined) < {avg_excess_power} (excess)')
+                            eviction_power_needed += defined_power
+                            break
+
                 # -------------------------------------------------------------------
 
 
@@ -344,9 +360,12 @@ class PvExcessControl:
 
                 # -------------------------------------------------------------------
                 if _get_state(inst.appliance_switch) == 'on':
-                    if avg_excess_power < PvExcessControl.min_excess_power:
-                        log.debug(f'{log_prefix} Average Excess Power ({avg_excess_power} W) is less than minimum excess power '
-                                  f'({PvExcessControl.min_excess_power} W).')
+                    if avg_excess_power < PvExcessControl.min_excess_power or eviction_power_needed > 0:
+                        if avg_excess_power < PvExcessControl.min_excess_power:
+                            log.debug(f'{log_prefix} Average Excess Power ({avg_excess_power} W) is less than minimum excess power '
+                                    f'({PvExcessControl.min_excess_power} W).')
+                        if eviction_power_needed > 0:
+                            log.debug(f'{log_prefix} We need to make room for higher priority appliance ({eviction_power_needed} W).')
 
                         # check if current of dyn. curr. appliance can be reduced
                         if inst.dynamic_current_appliance:
@@ -385,6 +404,9 @@ class PvExcessControl:
                                 prev_consumption_sum += power_consumption
                                 log.debug(f'{log_prefix} Added {power_consumption=} W to prev_consumption_sum, '
                                           f'which is now {prev_consumption_sum} W.')
+
+                        # we already made some room for higher priority appliances
+                        eviction_power_needed -= power_consumption
                     else:
                         log.debug(f'{log_prefix} Average Excess Power ({avg_excess_power} W) is still greater than minimum excess power '
                                   f'({PvExcessControl.min_excess_power} W) - Doing nothing.')
@@ -412,15 +434,25 @@ class PvExcessControl:
                 # load_pwr = pv_pwr + import_export
                 export_pwr = abs(min(0, import_export))
                 excess_pwr = -import_export
+                generated_pwr = max(0, import_export)
             else:
                 # Calc values based on separate sensors
-                export_pwr = int(_get_num_state(PvExcessControl.export_power))
-                excess_pwr = int(_get_num_state(PvExcessControl.pv_power) - _get_num_state(PvExcessControl.load_power))
+                export_pwr_state = _get_num_state(PvExcessControl.export_power)
+                pv_power_state = _get_num_state(PvExcessControl.pv_power)
+                load_power_state = _get_num_state(PvExcessControl.load_power)
+                if export_pwr_state is None or pv_power_state is None or load_power_state is None:
+                    raise Exception(f'Could not update Export/PV history {PvExcessControl.export_power=} | {PvExcessControl.pv_power=} | '
+                                    f'{PvExcessControl.load_power=} = {export_pwr_state=} | {pv_power_state=} | {load_power_state=}')
+                export_pwr = int(export_pwr_state)
+                excess_pwr = int(pv_power_state - load_power_state)
+                generated_pwr = max(0, pv_power_state)
+                log.debug(f'PV Power / Load Power: {PvExcessControl.pv_power} {_get_num_state(PvExcessControl.pv_power)} / {PvExcessControl.load_power} {_get_num_state(PvExcessControl.load_power)} ')
         except Exception as e:
             log.error(f'Could not update Export/PV history!: {e}')
         else:
             PvExcessControl.export_history_buffer.append(export_pwr)
             PvExcessControl.pv_history_buffer.append(excess_pwr)
+            PvExcessControl.pv_gen_history_buffer.append(generated_pwr)
 
         # log.debug(f'Export History Buffer: {PvExcessControl.export_history_buffer}')
         # log.debug(f'PV Excess (PV Power - Load Power) History Buffer: {PvExcessControl.pv_history_buffer}')
@@ -431,17 +463,23 @@ class PvExcessControl:
                 PvExcessControl.export_history.pop(0)
             if len(PvExcessControl.pv_history) >= 60:
                 PvExcessControl.pv_history.pop(0)
+            if len(PvExcessControl.pv_gen_history) >= 60:
+                PvExcessControl.pv_gen_history.pop(0)
             # calc avg of buffer
             export_avg = round(sum(PvExcessControl.export_history_buffer) / len(PvExcessControl.export_history_buffer))
             excess_avg = round(sum(PvExcessControl.pv_history_buffer) / len(PvExcessControl.pv_history_buffer))
+            generated_avg = round(sum(PvExcessControl.pv_gen_history_buffer) / len(PvExcessControl.pv_gen_history_buffer))
             # add avg to history
             PvExcessControl.export_history.append(export_avg)
             PvExcessControl.pv_history.append(excess_avg)
+            PvExcessControl.pv_gen_history.append(generated_avg)
             log.debug(f'Export History: {PvExcessControl.export_history}')
             log.debug(f'PV Excess (PV Power - Load Power) History: {PvExcessControl.pv_history}')
+            log.debug(f'PV Generation History: {PvExcessControl.pv_gen_history}')
             # clear buffer
             PvExcessControl.export_history_buffer = []
             PvExcessControl.pv_history_buffer = []
+            PvExcessControl.pv_gen_history_buffer = []
 
 
     def sanity_check(self) -> bool:
@@ -472,6 +510,20 @@ class PvExcessControl:
         if _turn_on(inst.appliance_switch):
             inst.switched_on_today = True
 
+    def get_power_consumption(self, inst) -> float:
+        """
+        Get the power consumption of an appliance
+        :param inst:        PVExcesscontrol Class instance
+        :return:            Power consumption of the appliance
+        """
+        if inst.actual_power is None:
+            power_consumption = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
+            log.debug(f'{inst.log_prefix} Current power consumption (calculated): {power_consumption} W')
+        else:
+            power_consumption = _get_num_state(inst.actual_power)
+            log.debug(f'{inst.log_prefix} Current power consumption (actual): {power_consumption} W')
+        return power_consumption
+
     def switch_off(self, inst) -> float:
         """
         Switches an appliance off, if possible.
@@ -494,11 +546,7 @@ class PvExcessControl:
         else:
             # switch off
             # get last power consumption
-            if inst.actual_power is None:
-                power_consumption = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
-            else:
-                power_consumption = _get_num_state(inst.actual_power)
-            log.debug(f'{inst.log_prefix} Current power consumption: {power_consumption} W')
+            power_consumption = self.get_power_consumption(inst)
             # switch off appliance
             _turn_off(inst.appliance_switch)
             log.info(f'{inst.log_prefix} Switched off appliance.')

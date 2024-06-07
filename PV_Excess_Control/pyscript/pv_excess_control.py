@@ -240,7 +240,7 @@ class PvExcessControl:
             # Sanity check
             if (not PvExcessControl.instances) or (not self.sanity_check()):
                 return on_time
-   
+                
             # execute only if this the first instance of the dictionary (avoid two automations acting)
             #log.info(f'{self.log_prefix} I am around.')
             first_item = next(iter(PvExcessControl.instances.values()))
@@ -274,7 +274,7 @@ class PvExcessControl:
                 if home_battery_level >= PvExcessControl.min_home_battery_level or not self._force_charge_battery():
                     # home battery charge is high enough to direct solar power to appliances, if solar power is higher than load power
                     # calc avg based on pv excess (solar power - load power) according to specified window
-                    avg_excess_power = int(sum(PvExcessControl.pv_history[-inst.appliance_switch_interval:]) / inst.appliance_switch_interval)
+                    avg_excess_power = int(sum(PvExcessControl.pv_history[-inst.appliance_switch_interval:]) / min([1,inst.appliance_switch_interval]))
                     log.debug(f'{log_prefix} Home battery charge is sufficient ({home_battery_level}/{PvExcessControl.min_home_battery_level} %)'
                               f' OR remaining solar forecast is higher than remaining capacity of home battery. '
                               f'Calculated average excess power based on >> solar power - load power <<: {avg_excess_power} W')
@@ -283,7 +283,7 @@ class PvExcessControl:
                     # home battery charge is not yet high enough OR battery force charge is necessary.
                     # Only use excess power (which would otherwise be exported to the grid) for appliance
                     # calc avg based on export power history according to specified window
-                    avg_excess_power = int(sum(PvExcessControl.export_history[-inst.appliance_switch_interval:]) / inst.appliance_switch_interval)
+                    avg_excess_power = int(sum(PvExcessControl.export_history[-inst.appliance_switch_interval:]) / min([1,inst.appliance_switch_interval]))
                     log.debug(f'{log_prefix} Home battery charge is not sufficient ({home_battery_level}/{PvExcessControl.min_home_battery_level} %), '
                               f'OR remaining solar forecast is lower than remaining capacity of home battery. '
                               f'Calculated average excess power based on >> export power <<: {avg_excess_power} W')
@@ -315,7 +315,8 @@ class PvExcessControl:
                         log.warning(f'{log_prefix} Appliance state (={_get_state(inst.appliance_switch)}) is neither ON nor OFF. '
                                     f'Assuming OFF state.')
                     defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
-                    if avg_excess_power >= defined_power:
+
+                    if avg_excess_power >= defined_power or (inst.appliance_priority > 1000 and avg_excess_power > 0):
                         log.debug(f'{log_prefix} Average Excess power is high enough to switch on appliance.')
                         if inst.switch_interval_counter >= inst.appliance_switch_interval:
                             self.switch_on(inst)
@@ -344,7 +345,15 @@ class PvExcessControl:
 
                 # -------------------------------------------------------------------
                 if _get_state(inst.appliance_switch) == 'on':
-                    if avg_excess_power < PvExcessControl.min_excess_power:
+                    # check if inst.appliance_priority > 1000 and switching of will cause excess. In that case keep it on
+                    if inst.appliance_priority > 1000:
+                        if inst.actual_power is None:
+                            allowed_excess_power_consumption = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
+                        else:
+                            allowed_excess_power_consumption = _get_num_state(inst.actual_power)
+                    else:
+                        allowed_excess_power_consumption = 0
+                    if avg_excess_power < PvExcessControl.min_excess_power - allowed_excess_power_consumption:
                         log.debug(f'{log_prefix} Average Excess Power ({avg_excess_power} W) is less than minimum excess power '
                                   f'({PvExcessControl.min_excess_power} W).')
 

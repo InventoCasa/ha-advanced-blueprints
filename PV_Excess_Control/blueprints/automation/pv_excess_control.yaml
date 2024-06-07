@@ -32,12 +32,14 @@ blueprint:
         text:
     appliance_priority:
       name: "Appliance priority"
-      description: "Appliances with a higher number are prioritized compared to appliances with a lower number."
+      description: "Appliances with a higher number are prioritized compared to appliances with a lower number.\n\n
+      If the priority is greater than 1000 this appliance will be switched on, even if the excess power is not 
+      sufficient for 100% of the needed power"
       default: 1
       selector:
         number:
           min: 1
-          max: 1000
+          max: 2000
           mode: box
           unit_of_measurement: "Priority level"
 

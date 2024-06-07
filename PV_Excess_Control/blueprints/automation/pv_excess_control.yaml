@@ -34,7 +34,7 @@ blueprint:
       name: "Appliance priority"
       description: "Appliances with a higher number are prioritized compared to appliances with a lower number.\n\n
       If the priority is greater than 1000 this appliance will be switched on, even if the excess power is not 
-      sufficient for 100% of the needed power
+      sufficient for 100% of the needed power"
       default: 1
       selector:
         number:

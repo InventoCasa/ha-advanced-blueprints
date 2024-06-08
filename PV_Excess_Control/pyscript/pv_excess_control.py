@@ -269,7 +269,7 @@ class PvExcessControl:
             # ----------------------------------- go through each appliance (highest prio to lowest) ---------------------------------------
             # this is for determining which devices can be switched on
             instances = []
-            switched_off_aplliance_to_switch_on_higher_prioritized_one = False
+            switched_off_appliance_to_switch_on_higher_prioritized_one = False
             for a_id, e in PvExcessControl.instances.copy().items():
                 inst = e['instance']
                 inst.switch_interval_counter += 1

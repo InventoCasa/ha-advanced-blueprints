@@ -287,7 +287,7 @@ class PvExcessControl:
                 if home_battery_level >= PvExcessControl.min_home_battery_level or not self._force_charge_battery():
                     # home battery charge is high enough to direct solar power to appliances, if solar power is higher than load power
                     # calc avg based on pv excess (solar power - load power) according to specified window
-
+                    avg_excess_power = int(sum(PvExcessControl.pv_history[-inst.appliance_switch_interval:]) / max(1,inst.appliance_switch_interval))
                     log.debug(f'{log_prefix} Home battery charge is sufficient ({home_battery_level}/{PvExcessControl.min_home_battery_level} %)'
                               f' OR remaining solar forecast is higher than remaining capacity of home battery. '
                               f'Calculated average excess power based on >> solar power - load power <<: {avg_excess_power} W')
@@ -296,7 +296,6 @@ class PvExcessControl:
                     # home battery charge is not yet high enough OR battery force charge is necessary.
                     # Only use excess power (which would otherwise be exported to the grid) for appliance
                     # calc avg based on export power history according to specified window
-
                     avg_excess_power = int(sum(PvExcessControl.export_history[-inst.appliance_switch_interval:]) / max(1,inst.appliance_switch_interval))
                     log.debug(f'{log_prefix} Home battery charge is not sufficient ({home_battery_level}/{PvExcessControl.min_home_battery_level} %), '
                               f'OR remaining solar forecast is lower than remaining capacity of home battery. '

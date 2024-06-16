@@ -244,6 +244,14 @@ blueprint:
           domain: sensor
           multiple: false
 
+    time_of_sunset:
+      name: "The time of sunset at the current location "
+      description: "The time of sunset in the current location. You can use `sensor.sun_next_setting`"
+      default:
+      selector:
+        entity:
+          domain: sensor
+          multiple: false
 
     appliance_switch:
       name: "Appliance Entity"
@@ -266,7 +274,7 @@ blueprint:
       default: 5
       selector:
         number:
-          min: 1
+          min: 5
           max: 60
           step: 1
           unit_of_measurement: min
@@ -287,6 +295,28 @@ blueprint:
       default: False
       selector:
         boolean:
+
+    appliance_minimum_run_time:
+      name: "Appliance minimum daily runtime"
+      description: "Defines the minimum time (in minutes) the appliance should run in a day."
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+
+    appliance_maximum_run_time:
+      name: "Appliance maximum daily runtime"
+      description: "Defines the maximum time (in minutes) the appliance should run in a day.\n0 means infinite time"
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 1440
+          step: 1
+          unit_of_measurement: min
 
     dynamic_current_appliance:
       name: "Dynamic current control"
@@ -425,4 +455,7 @@ action:
       import_export_power: !input import_export_power
       home_battery_capacity: !input home_battery_capacity
       solar_production_forecast: !input solar_production_forecast
+      time_of_sunset: !input time_of_sunset
       appliance_once_only: !input appliance_once_only
+      appliance_maximum_run_time: !input appliance_maximum_run_time
+      appliance_minimum_run_time: !input appliance_minimum_run_time

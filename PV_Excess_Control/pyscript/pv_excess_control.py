@@ -141,27 +141,41 @@ def reset_midnight():
     for e in PvExcessControl.instances.copy().values():
         inst = e['instance']
         inst.switched_on_today = False
+        inst.enforce_minimum_run = False
         inst.daily_run_time = 0
 
+@time_trigger("cron(0 20 * * *)")
+def enforce_runtime():
+    log.info("Starting to enforce minimum runtime.")
+    for e in PvExcessControl.instances.copy().values():
+        inst = e['instance']
+        run_time_min = inst.daily_run_time / 60
+        log.info(f'{inst.log_prefix} Ran for {run_time_min:.1f} out of {inst.appliance_minimum_run_time:.1f} minutes')
+        if run_time_min < inst.appliance_minimum_run_time:
+            log.info(f'{inst.log_prefix} Enforcing minimum runtime')
+            inst.enforce_minimum_run = True
+        else:
+            log.info(f'{inst.log_prefix} Application ran long enough, no minimum enforcement')
 
 @service
 def pv_excess_control(automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
                       min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                       max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                       actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
-                      home_battery_capacity, solar_production_forecast, appliance_once_only):
+                      home_battery_capacity, solar_production_forecast, time_of_sunset, appliance_once_only, appliance_maximum_run_time,
+                      appliance_minimum_run_time):
 
     automation_id = automation_id[11:] if automation_id[:11] == 'automation.' else automation_id
     automation_id = _replace_vowels(f"automation.{automation_id.strip().replace(' ', '_').lower()}")
 
 
-    PvExcessControl(automation_id, appliance_priority, export_power, pv_power,
-                    load_power, home_battery_level, min_home_battery_level,
-                    dynamic_current_appliance, appliance_phases, min_current,
-                    max_current, appliance_switch, appliance_switch_interval,
-                    appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
-                    grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast,
-                    appliance_once_only)
+    class_instances[automation_id] = PvExcessControl(automation_id, appliance_priority, export_power, pv_power,
+                                                     load_power, home_battery_level, min_home_battery_level,
+                                                     dynamic_current_appliance, appliance_phases, min_current,
+                                                     max_current, appliance_switch, appliance_switch_interval,
+                                                     appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
+                                                     grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast, time_of_sunset,
+                                                     appliance_once_only, appliance_maximum_run_time, appliance_minimum_run_time)
 
 
 
@@ -179,6 +193,7 @@ class PvExcessControl:
     import_export_power = None
     home_battery_capacity = None
     solar_production_forecast = None
+    time_of_sunset = None
     min_home_battery_level = None
     # Exported Power history
     export_history = [0]*60
@@ -192,14 +207,14 @@ class PvExcessControl:
     #  WARNING: Do net set this to more than 0, otherwise some devices with dynamic current control will abruptly get switched off in some
     #  situations.
     min_excess_power = -10
-    on_time_counter = 0
 
 
     def __init__(self, automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
                  min_home_battery_level, dynamic_current_appliance, appliance_phases, min_current,
                  max_current, appliance_switch, appliance_switch_interval, appliance_current_set_entity,
                  actual_power, defined_current, appliance_on_only, grid_voltage, import_export_power,
-                 home_battery_capacity, solar_production_forecast, appliance_once_only):
+                 home_battery_capacity, solar_production_forecast, time_of_sunset, appliance_once_only, appliance_maximum_run_time,
+                 appliance_minimum_run_time):
         if automation_id not in PvExcessControl.instances:
             inst = self
         else:
@@ -214,6 +229,7 @@ class PvExcessControl:
         PvExcessControl.import_export_power = import_export_power
         PvExcessControl.home_battery_capacity = home_battery_capacity
         PvExcessControl.solar_production_forecast = solar_production_forecast
+        PvExcessControl.time_of_sunset = time_of_sunset
         PvExcessControl.min_home_battery_level = float(min_home_battery_level)
 
         inst.dynamic_current_appliance = bool(dynamic_current_appliance)
@@ -226,11 +242,20 @@ class PvExcessControl:
         inst.defined_current = float(defined_current)
         inst.appliance_on_only = bool(appliance_on_only)
         inst.appliance_once_only = appliance_once_only
+        inst.appliance_maximum_run_time = appliance_maximum_run_time
+        inst.appliance_minimum_run_time = appliance_minimum_run_time
+        inst.enforce_minimum_run = False
 
         inst.phases = appliance_phases
 
         inst.log_prefix = f'[{inst.appliance_switch} {inst.automation_id} (Prio {inst.appliance_priority})]'
         inst.domain = inst.appliance_switch.split('.')[0]
+        inst.switch_interval_counter = 0
+        inst.switched_on_today = False
+        inst.switched_on_time = datetime.datetime.now()
+        inst.daily_run_time = 0
+        inst.log_prefix = f'[{self.appliance_switch} (Prio {self.appliance_priority})]'
+        inst.domain = self.appliance_switch.split('.')[0]
 
 
         # start if needed
@@ -246,8 +271,8 @@ class PvExcessControl:
         log.info(f'{inst.log_prefix} Registered appliance.')
 
     def trigger_factory(self):
-        # trigger every 10s
-        @time_trigger('period(now, 10s)')
+        # trigger every 60s
+        @time_trigger('period(now, 60s)')
         def on_time():
             # Sanity check
             if (not PvExcessControl.instances) or (not self.sanity_check()):
@@ -261,10 +286,6 @@ class PvExcessControl:
 
             PvExcessControl.on_time_counter += 1
             PvExcessControl._update_pv_history()
-            # ensure that control algo only runs every minute (= every 6th on_time trigger)
-            if PvExcessControl.on_time_counter % 6 != 0:
-                return on_time
-            PvExcessControl.on_time_counter = 0
 
             # ----------------------------------- go through each appliance (highest prio to lowest) ---------------------------------------
             # this is for determining which devices can be switched on
@@ -276,6 +297,28 @@ class PvExcessControl:
 
                 # Check if automation is activated for specific instance
                 if not self.automation_activated(inst.automation_id):
+                    continue
+
+                # Check to see if we are enforcing the minimum run time
+                # This gets set at night by enforce_runtime()
+                if inst.enforce_minimum_run:
+                    # If we aren't on, then turn on
+                    if _get_state(inst.appliance_switch) != 'on':
+                        self.switch_on(inst)
+
+                    # Update the time
+                    run_time = (inst.daily_run_time + (datetime.datetime.now() - inst.switched_on_time).total_seconds()) / 60
+                    log.debug(f'{inst.log_prefix} Enforcing minimum application has run for {run_time:.1f} out of {inst.appliance_minimum_run_time:.1f} minutes')
+
+                    if run_time > inst.appliance_minimum_run_time:
+                        log.info(f'{inst.log_prefix} Application has run for minimum minutes, turning off')
+                        # Try to switch off appliance
+                        power_consumption = self.switch_off(inst)
+
+                        # If the device turned off, disable enforced running
+                        if power_consumption > 0:
+                            inst.enforce_minimum_run = False
+
                     continue
 
                 # check min bat lvl and decide whether to regard export power or solar power minus load power
@@ -303,6 +346,9 @@ class PvExcessControl:
                 # add instance including calculated excess power to inverted list (priority from low to high)
                 instances.insert(0, {'instance': inst, 'avg_excess_power': avg_excess_power})
 
+                if inst.appliance_maximum_run_time > 0 and (inst.daily_run_time / 60) > inst.appliance_maximum_run_time:
+                    log.info(f'{inst.log_prefix} Application has run for too many minutes, not turning on')
+                    continue
 
                 # -------------------------------------------------------------------
                 # Determine if appliance can be turned on or current can be increased
@@ -328,9 +374,10 @@ class PvExcessControl:
                     if _get_state(inst.appliance_switch) != 'off':
                         log.warning(f'{log_prefix} Appliance state (={_get_state(inst.appliance_switch)}) is neither ON nor OFF. '
                                     f'Assuming OFF state.')
+
                     defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
 
-                    if avg_excess_power >= defined_power or (inst.appliance_priority > 1000 and avg_excess_power > 0):
+                    if avg_excess_power >= defined_power or (inst.appliance_priority > 1000 and avg_excess_power > 0) or self._run_anyway(inst, (inst.daily_run_time / 60), avg_excess_power):
                         log.debug(f'{log_prefix} Average Excess power is high enough to switch on appliance.')
                         if inst.switch_interval_counter >= inst.appliance_switch_interval:
                             self.switch_on(inst)
@@ -367,9 +414,35 @@ class PvExcessControl:
                             allowed_excess_power_consumption = _get_num_state(inst.actual_power)
                     else:
                         allowed_excess_power_consumption = 0
-                    if avg_excess_power < PvExcessControl.min_excess_power - allowed_excess_power_consumption:
-                        log.debug(f'{log_prefix} Average Excess Power ({avg_excess_power} W) is less than minimum excess power '
-                                  f'({PvExcessControl.min_excess_power} W).')
+                    
+                    run_time = (inst.daily_run_time + (datetime.datetime.now() - inst.switched_on_time).total_seconds()) / 60
+                    log.info(f'{inst.log_prefix} Device is on, application has run for {run_time:.1f} out of {inst.appliance_maximum_run_time:.1f} minutes')
+                    if inst.appliance_maximum_run_time > 0 and run_time > inst.appliance_maximum_run_time:
+                        log.info(f'{inst.log_prefix} Application has run for too many minutes, turning off')
+                        # Try to switch off appliance
+                        power_consumption = self.switch_off(inst)
+                        if power_consumption != 0:
+                            prev_consumption_sum += power_consumption
+                            log.debug(f'{log_prefix} Added {power_consumption=} W to prev_consumption_sum, '
+                                      f'which is now {prev_consumption_sum} W.')
+                        continue
+
+
+                    # Check if we don't have enough excess power and if we aren't trying to meet a minimum run time
+                    # Note that we add the current appliance usage to the excess power, because we want to continue
+                    # running if the current appliance is only partially using excess power
+                    if inst.actual_power is None:
+                        power_consumption = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
+                    else:
+                        power_consumption = _get_num_state(inst.actual_power)
+
+                    appliance_excess_power = avg_excess_power + power_consumption
+                    if avg_excess_power < PvExcessControl.min_excess_power - allowed_excess_power_consumption and not self._run_anyway(inst, run_time, appliance_excess_power):
+                        if avg_excess_power < PvExcessControl.min_excess_power:
+                            log.debug(f'{log_prefix} Average Excess Power ({avg_excess_power} W) is less than minimum excess power '
+                                      f'({PvExcessControl.min_excess_power} W).')
+                        else:
+                            log.debug(f'{log_prefix} The appliance {power_consumption}W is not using any excess power {appliance_excess_power}W')
 
                         # check if current of dyn. curr. appliance can be reduced
                         if inst.dynamic_current_appliance:
@@ -409,9 +482,9 @@ class PvExcessControl:
                                 log.debug(f'{log_prefix} Added {power_consumption=} W to prev_consumption_sum, '
                                           f'which is now {prev_consumption_sum} W.')
                     else:
-                        log.debug(f'{log_prefix} Average Excess Power ({avg_excess_power} W) is still greater than minimum excess power '
-                                  f'({PvExcessControl.min_excess_power} W) - Doing nothing.')
-
+                        if avg_excess_power > PvExcessControl.min_excess_power:
+                            log.debug(f'{log_prefix} Average Excess Power ({avg_excess_power} W) is still greater than minimum excess power '
+                                      f'({PvExcessControl.min_excess_power} W) - Doing nothing.')
 
                 else:
                     if _get_state(inst.appliance_switch) != 'off':
@@ -458,23 +531,22 @@ class PvExcessControl:
         # log.debug(f'Export History Buffer: {PvExcessControl.export_history_buffer}')
         # log.debug(f'PV Excess (PV Power - Load Power) History Buffer: {PvExcessControl.pv_history_buffer}')
 
-        if PvExcessControl.on_time_counter % 6 == 0:
-            # enforce max. 60 minute length of history
-            if len(PvExcessControl.export_history) >= 60:
-                PvExcessControl.export_history.pop(0)
-            if len(PvExcessControl.pv_history) >= 60:
-                PvExcessControl.pv_history.pop(0)
-            # calc avg of buffer
-            export_avg = round(sum(PvExcessControl.export_history_buffer) / len(PvExcessControl.export_history_buffer))
-            excess_avg = round(sum(PvExcessControl.pv_history_buffer) / len(PvExcessControl.pv_history_buffer))
-            # add avg to history
-            PvExcessControl.export_history.append(export_avg)
-            PvExcessControl.pv_history.append(excess_avg)
-            log.debug(f'Export History: {PvExcessControl.export_history}')
-            log.debug(f'PV Excess (PV Power - Load Power) History: {PvExcessControl.pv_history}')
-            # clear buffer
-            PvExcessControl.export_history_buffer = []
-            PvExcessControl.pv_history_buffer = []
+        # enforce max. 60 minute length of history
+        if len(PvExcessControl.export_history) >= 60:
+            PvExcessControl.export_history.pop(0)
+        if len(PvExcessControl.pv_history) >= 60:
+            PvExcessControl.pv_history.pop(0)
+        # calc avg of buffer
+        export_avg = round(sum(PvExcessControl.export_history_buffer) / len(PvExcessControl.export_history_buffer))
+        excess_avg = round(sum(PvExcessControl.pv_history_buffer) / len(PvExcessControl.pv_history_buffer))
+        # add avg to history
+        PvExcessControl.export_history.append(export_avg)
+        PvExcessControl.pv_history.append(excess_avg)
+        log.debug(f'Export History: {PvExcessControl.export_history}')
+        log.debug(f'PV Excess (PV Power - Load Power) History: {PvExcessControl.pv_history}')
+        # clear buffer
+        PvExcessControl.export_history_buffer = []
+        PvExcessControl.pv_history_buffer = []
 
 
     def sanity_check(self) -> bool:
@@ -536,6 +608,7 @@ class PvExcessControl:
             # switch off appliance
             _turn_off(inst.appliance_switch)
             inst.daily_run_time += (datetime.datetime.now() - inst.switched_on_time).total_seconds()
+            inst.daily_run_time += (datetime.datetime.now() - inst.switched_on_time).total_seconds()
             log.info(f'{inst.log_prefix} Switched off appliance.')
             log.info(f'{inst.log_prefix} Application has run for {(inst.daily_run_time / 60):.1f} minutes')
             task.sleep(1)
@@ -596,4 +669,50 @@ class PvExcessControl:
                 inst = e['instance']
                 self.switch_off(inst)
             return True
+        return False
+
+    def _run_anyway(self, inst, current_run_time, avg_excess_power):
+        """
+        Calculates if the remaining solar power forecast is below the predicted usage
+        :param inst:        PVExcesscontrol Class instance
+        :return:            True if force charge is necessary, False otherwise
+        """
+        defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
+        projected_future_power_usage = -1 * (defined_power * ((current_run_time - inst.appliance_minimum_run_time) / 60)) / 1000
+
+        remaining_forecast = _get_num_state(PvExcessControl.solar_production_forecast, return_on_error=0)
+
+        sunset_string = _get_state(PvExcessControl.time_of_sunset)
+        sunset_time = datetime.datetime.fromisoformat(sunset_string)
+        time_now = datetime.datetime.now(datetime.timezone.utc)
+        time_of_sunset = (sunset_time - time_now).total_seconds() / (60 * 60)
+
+        log.debug(f'{inst.log_prefix} {time_of_sunset} hours of sunlight remaining')
+
+        try:
+            if PvExcessControl.import_export_power:
+                # Calc values based on combined import/export power sensor
+                import_export = _get_num_state(PvExcessControl.import_export_power)
+                load_power = _get_num_state(PvExcessControl.pv_power) + import_export
+            else:
+                # Calc values based on separate sensors
+                load_power = _get_num_state(PvExcessControl.load_power)
+        except:
+            log.error(f'Could not get the current load power, using default of 500')
+            load_power = 500
+
+        remaining_usage = time_of_sunset * load_power / 1000
+        remaining_power = remaining_forecast - remaining_usage
+
+        log.info(f'{inst.log_prefix} Projected to use {projected_future_power_usage:.3f}kWh out of {remaining_power:.1f}kWh and excess power is {avg_excess_power:.1f}')
+
+        if projected_future_power_usage >= remaining_power:
+            # If we get here then the appliance is expected to use more
+            # electricity to hit the minimum run time then the solar
+            # production for the rest of the day
+            # So we want to run if there is any excess power, otherwise we
+            # have to run later at night
+            if avg_excess_power > 0:
+                return True
+
         return False

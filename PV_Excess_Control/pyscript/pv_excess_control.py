@@ -169,13 +169,13 @@ def pv_excess_control(automation_id, appliance_priority, export_power, pv_power,
     automation_id = _replace_vowels(f"automation.{automation_id.strip().replace(' ', '_').lower()}")
 
 
-    class_instances[automation_id] = PvExcessControl(automation_id, appliance_priority, export_power, pv_power,
-                                                     load_power, home_battery_level, min_home_battery_level,
-                                                     dynamic_current_appliance, appliance_phases, min_current,
-                                                     max_current, appliance_switch, appliance_switch_interval,
-                                                     appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
-                                                     grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast, time_of_sunset,
-                                                     appliance_once_only, appliance_maximum_run_time, appliance_minimum_run_time)
+    PvExcessControl(automation_id, appliance_priority, export_power, pv_power,
+                    load_power, home_battery_level, min_home_battery_level,
+                    dynamic_current_appliance, appliance_phases, min_current,
+                    max_current, appliance_switch, appliance_switch_interval,
+                    appliance_current_set_entity, actual_power, defined_current, appliance_on_only,
+                    grid_voltage, import_export_power, home_battery_capacity, solar_production_forecast, time_of_sunset,
+                    appliance_once_only, appliance_maximum_run_time, appliance_minimum_run_time)
 
 
 
@@ -250,12 +250,6 @@ class PvExcessControl:
 
         inst.log_prefix = f'[{inst.appliance_switch} {inst.automation_id} (Prio {inst.appliance_priority})]'
         inst.domain = inst.appliance_switch.split('.')[0]
-        inst.switch_interval_counter = 0
-        inst.switched_on_today = False
-        inst.switched_on_time = datetime.datetime.now()
-        inst.daily_run_time = 0
-        inst.log_prefix = f'[{self.appliance_switch} (Prio {self.appliance_priority})]'
-        inst.domain = self.appliance_switch.split('.')[0]
 
 
         # start if needed
@@ -284,7 +278,6 @@ class PvExcessControl:
             if first_item["instance"] != self:
                 return on_time                
 
-            PvExcessControl.on_time_counter += 1
             PvExcessControl._update_pv_history()
 
             # ----------------------------------- go through each appliance (highest prio to lowest) ---------------------------------------
@@ -607,7 +600,6 @@ class PvExcessControl:
             log.debug(f'{inst.log_prefix} Current power consumption: {power_consumption} W')
             # switch off appliance
             _turn_off(inst.appliance_switch)
-            inst.daily_run_time += (datetime.datetime.now() - inst.switched_on_time).total_seconds()
             inst.daily_run_time += (datetime.datetime.now() - inst.switched_on_time).total_seconds()
             log.info(f'{inst.log_prefix} Switched off appliance.')
             log.info(f'{inst.log_prefix} Application has run for {(inst.daily_run_time / 60):.1f} minutes')

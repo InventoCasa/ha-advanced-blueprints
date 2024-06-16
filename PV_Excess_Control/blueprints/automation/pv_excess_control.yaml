@@ -466,3 +466,5 @@ action:
       solar_production_forecast: !input solar_production_forecast
       time_of_sunset: !input time_of_sunset
       appliance_once_only: !input appliance_once_only
+      appliance_maximum_run_time: !input appliance_maximum_run_time
+      appliance_minimum_run_time: !input appliance_minimum_run_time

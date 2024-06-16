@@ -370,8 +370,11 @@ class PvExcessControl:
 
                     defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
 
-                    if avg_excess_power >= defined_power or (inst.appliance_priority > 1000 and avg_excess_power > 0) or self._run_anyway(inst, (inst.daily_run_time / 60), avg_excess_power):
-                        log.debug(f'{log_prefix} Average Excess power is high enough to switch on appliance.')
+                    # Check if there is sufficient excess power to power the appliance
+                    #   or if the appliance has a high priority (see #64)
+                    #   or if the appliance should be turned anyways to meet appliance_minimum_run_time
+                    if avg_excess_power >= defined_power or (inst.appliance_priority > 1000 and avg_excess_power > 0) or self._force_minimum_runtime(inst, (inst.daily_run_time / 60), avg_excess_power):
+                        log.debug(f'{log_prefix} Average Excess power ({avg_excess_power} W) is high enough to switch on appliance.')
                         if inst.switch_interval_counter >= inst.appliance_switch_interval:
                             self.switch_on(inst)
                             inst.switch_interval_counter = 0
@@ -385,7 +388,7 @@ class PvExcessControl:
                             log.debug(f'{log_prefix} Cannot switch on appliance, because appliance switch interval is not reached '
                                       f'({inst.switch_interval_counter}/{inst.appliance_switch_interval}).')
                     else:
-                        log.debug(f'{log_prefix} Average Excess power not high enough to switch on appliance.')
+                        log.debug(f'{log_prefix} Average Excess power ({avg_excess_power} W) not high enough to switch on appliance.')
                 # -------------------------------------------------------------------
 
 
@@ -430,7 +433,7 @@ class PvExcessControl:
                         power_consumption = _get_num_state(inst.actual_power)
 
                     appliance_excess_power = avg_excess_power + power_consumption
-                    if avg_excess_power < PvExcessControl.min_excess_power - allowed_excess_power_consumption and not self._run_anyway(inst, run_time, appliance_excess_power):
+                    if avg_excess_power < PvExcessControl.min_excess_power - allowed_excess_power_consumption and not self._force_minimum_runtime(inst, run_time, appliance_excess_power):
                         if avg_excess_power < PvExcessControl.min_excess_power:
                             log.debug(f'{log_prefix} Average Excess Power ({avg_excess_power} W) is less than minimum excess power '
                                       f'({PvExcessControl.min_excess_power} W).')
@@ -663,11 +666,11 @@ class PvExcessControl:
             return True
         return False
 
-    def _run_anyway(self, inst, current_run_time, avg_excess_power):
+    def _force_minimum_runtime(self, inst, current_run_time, avg_excess_power):
         """
-        Calculates if the remaining solar power forecast is below the predicted usage
+        Calculates if the daily remaining solar production forecast is sufficient to run loads and the appliance for appliance_minimum_run_time
         :param inst:        PVExcesscontrol Class instance
-        :return:            True if force charge is necessary, False otherwise
+        :return:            True if remaining production is insufficient but there is still some excess power, false otherwise
         """
         defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
         projected_future_power_usage = -1 * (defined_power * ((current_run_time - inst.appliance_minimum_run_time) / 60)) / 1000
@@ -682,8 +685,9 @@ class PvExcessControl:
         time_now = datetime.datetime.now(datetime.timezone.utc)
         time_of_sunset = (sunset_time - time_now).total_seconds() / (60 * 60)
 
-        log.debug(f'{inst.log_prefix} {time_of_sunset} hours of sunlight remaining')
+        log.debug(f'{inst.log_prefix} {time_of_sunset:.1f} hours of sunlight remaining')
 
+        # Calculate remaining overall power usage until sunset, assuming current load
         try:
             if PvExcessControl.import_export_power:
                 # Calc values based on combined import/export power sensor
@@ -699,7 +703,7 @@ class PvExcessControl:
         remaining_usage = time_of_sunset * load_power / 1000
         remaining_power = remaining_forecast - remaining_usage
 
-        log.info(f'{inst.log_prefix} Projected to use {projected_future_power_usage:.3f}kWh out of {remaining_power:.1f}kWh and excess power is {avg_excess_power:.1f}')
+        log.info(f'{inst.log_prefix} Projected to use {projected_future_power_usage:.3f}kWh out of {remaining_power:.1f}kWh to meet minimum runtime, excess power is {avg_excess_power:.1f}')
 
         if projected_future_power_usage >= remaining_power:
             # If we get here then the appliance is expected to use more

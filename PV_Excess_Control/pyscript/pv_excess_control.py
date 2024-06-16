@@ -672,7 +672,10 @@ class PvExcessControl:
         defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
         projected_future_power_usage = -1 * (defined_power * ((current_run_time - inst.appliance_minimum_run_time) / 60)) / 1000
 
-        remaining_forecast = _get_num_state(PvExcessControl.solar_production_forecast, return_on_error=0)
+        if PvExcessControl.solar_production_forecast:
+            remaining_forecast = _get_num_state(PvExcessControl.solar_production_forecast, return_on_error=0)
+        else:
+            remaining_forecast = 0
 
         sunset_string = _get_state(PvExcessControl.time_of_sunset)
         sunset_time = datetime.datetime.fromisoformat(sunset_string)

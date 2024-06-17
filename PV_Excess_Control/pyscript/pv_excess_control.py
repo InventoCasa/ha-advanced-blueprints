@@ -269,6 +269,7 @@ class PvExcessControl:
             # ----------------------------------- go through each appliance (highest prio to lowest) ---------------------------------------
             # this is for determining which devices can be switched on
             instances = []
+            switched_off_appliance_to_switch_on_higher_prioritized_one = False
             for a_id, e in PvExcessControl.instances.copy().items():
                 inst = e['instance']
                 inst.switch_interval_counter += 1
@@ -344,6 +345,18 @@ class PvExcessControl:
                         else:
                             log.debug(f'{log_prefix} Cannot switch on appliance, because appliance switch interval is not reached '
                                       f'({inst.switch_interval_counter}/{inst.appliance_switch_interval}).')
+                    elif (not switched_off_appliance_to_switch_on_higher_prioritized_one) and (self.calculate_pwr_reducible(inst.appliance_priority) + avg_excess_power) >= (defined_power if inst.appliance_priority <= 500 else 0):
+                        # excess power is sufficient by switching off lower prioritized appliance(s)
+                        if inst.switch_interval_counter >= inst.appliance_switch_interval:
+                            self.switch_on(inst)
+                            inst.switch_interval_counter = 0
+                            switched_off_appliance_to_switch_on_higher_prioritized_one = True
+                            log.info(f'{log_prefix} Average Excess power will be high enough by switching off lower prioritized appliance(s). Switched on appliance.')
+                            # "restart" history by subtracting defined power from each history value within the specified time frame
+                            self._adjust_pwr_history(inst, -defined_power)
+                            task.sleep(1)
+                            if inst.dynamic_current_appliance:
+                                _set_value(inst.appliance_current_set_entity, inst.min_current)
                     else:
                         log.debug(f'{log_prefix} Average Excess power not high enough to switch on appliance.')
                 # -------------------------------------------------------------------
@@ -597,3 +610,32 @@ class PvExcessControl:
                 self.switch_off(inst)
             return True
         return False
+
+
+    def calculate_pwr_reducible(self, max_priority):
+        """
+        Calculates the reducible power by switching off all appliances, which can be switched off and have a priority below max_priority
+        :param  max_priority: see description
+        :return:              reducible power
+        """
+        pwr_reducible = 0
+        for a_id, e in PvExcessControl.instances.copy().items():
+            inst = e['instance']
+            if not self.automation_activated(inst.automation_id):
+                continue
+            # Do not turn off only-on-appliances
+            if inst.appliance_on_only:
+                continue
+            # Do not turn off if switch interval not reached
+            if inst.switch_interval_counter < inst.appliance_switch_interval:
+                continue
+            if inst.appliance_priority >= max_priority:
+                continue
+            if _get_state(inst.appliance_switch) != 'on':
+                continue
+            if inst.actual_power is None:
+                pwr_reducible += inst.defined_current * PvExcessControl.grid_voltage * inst.phases
+            else:
+                pwr_reducible += _get_num_state(inst.actual_power)
+        
+        return pwr_reducible

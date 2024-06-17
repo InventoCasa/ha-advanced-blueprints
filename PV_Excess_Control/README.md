@@ -1,8 +1,8 @@
 # PV Excess Control
-Automatically control your appliances (wallbox, heatpump, washing machine, ...)
-based on excess solar power.
+Automatically control your appliances (wallbox, heatpump, washing machine, ...) based on excess solar power.
 
-This is based on the original from: https://github.com/InventoCasa/ha-advanced-blueprints
+If you like my work, you can support me here:\
+[<img src="https://user-images.githubusercontent.com/1286821/181085373-12eee197-187a-4438-90fe-571ac6d68900.png" alt="Buy me a coffee" width="200" />](https://buymeacoffee.com/henrikIC)
 
 ## Features
 :white_check_mark: Works with hybrid and standard inverters\
@@ -12,8 +12,7 @@ This is based on the original from: https://github.com/InventoCasa/ha-advanced-b
 :white_check_mark: Supports dynamic current control (e.g. for wallboxes)\
 :white_check_mark: Define min. and max. current for appliances supporting dynamic current control\
 :white_check_mark: Supports one- and three-phase appliances\
-:white_check_mark: Supports *Only-Switch-On* devices like washing machines or dishwashers\
-:white_check_mark: Support minimum and maximum run times
+:white_check_mark: Supports *Only-Switch-On* devices like washing machines or dishwashers
 
 
 ## Prerequisites

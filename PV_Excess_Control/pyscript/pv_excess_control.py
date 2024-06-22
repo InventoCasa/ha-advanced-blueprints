@@ -150,7 +150,7 @@ def enforce_runtime():
     """
     Enforce minimum runtime at trigger (20:00) and turn appliance on if appliance didn't run for appliance_minimum_run_time through the day.
     """
-    log.info("Starting to enforce minimum runtime.")
+    log.info("Starting daily enforcement of minimum runtime.")
     for e in PvExcessControl.instances.copy().values():
         inst = e['instance']
         run_time_min = inst.daily_run_time / 60
@@ -296,12 +296,13 @@ class PvExcessControl:
                     continue
 
                 # Check if we are enforcing the minimum daily run time
-                # This gets set at night by enforce_runtime() if daily run time was not sufficient
+                # This gets set once per day by enforce_runtime() if daily run time was not sufficient
                 # and forces the appliance on no matter what until minimum runtime is met 
                 if inst.enforce_minimum_run:
                     # If we aren't on, then turn on
                     if _get_state(inst.appliance_switch) != 'on':
                         self.switch_on(inst)
+                        log.info(f'{inst.log_prefix} Switched on appliance to meet minimum runtime.')
 
                     # Update runtime
                     run_time = (inst.daily_run_time + (datetime.datetime.now() - inst.switched_on_time).total_seconds()) / 60
@@ -427,7 +428,6 @@ class PvExcessControl:
                         continue
 
 
-                    # Calculate appliance_excess_power to calculate if 
                     # Note that we add the current appliance usage to the appliance excess power, because we want to continue
                     # running if the current appliance is only partially using excess power
                     if inst.actual_power is None:

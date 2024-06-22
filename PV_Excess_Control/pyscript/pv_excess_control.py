@@ -155,10 +155,10 @@ def enforce_runtime():
         inst = e['instance']
         run_time_min = inst.daily_run_time / 60
         if run_time_min < inst.appliance_minimum_run_time:
-            log.info(f'{inst.log_prefix} Ran for {run_time_min:.1f} out of {inst.appliance_minimum_run_time:.1f} minutes, enforcing minimum runtime')
+            log.info(f'{inst.log_prefix} Ran for {run_time_min:.1f} out of {inst.appliance_minimum_run_time:.1f} minutes minimum runtime, enforcing minimum runtime')
             inst.enforce_minimum_run = True
         else:
-            log.info(f'{inst.log_prefix} Ran for {run_time_min:.1f} out of {inst.appliance_minimum_run_time:.1f} minutes, appliance ran long enough, no minimum runtime enforcement')
+            log.info(f'{inst.log_prefix} Ran for {run_time_min:.1f} out of {inst.appliance_minimum_run_time:.1f} minutes minimum runtime, appliance ran long enough, no minimum runtime enforcement')
 
 @service
 def pv_excess_control(automation_id, appliance_priority, export_power, pv_power, load_power, home_battery_level,
@@ -305,10 +305,10 @@ class PvExcessControl:
 
                     # Update runtime
                     run_time = (inst.daily_run_time + (datetime.datetime.now() - inst.switched_on_time).total_seconds()) / 60
-                    log.debug(f'{inst.log_prefix} Enforcing minimum application has run for {run_time:.1f} out of {inst.appliance_minimum_run_time:.1f} minutes')
+                    log.debug(f'{inst.log_prefix} Appliance has run for {run_time:.1f} minutes (min: {inst.appliance_minimum_run_time}, max: {inst.appliance_maximum_run_time}).')
 
                     if run_time > inst.appliance_minimum_run_time:
-                        log.info(f'{inst.log_prefix} Application has run for minimum minutes, turning off')
+                        log.info(f'{inst.log_prefix} Minimum runtime met, turning off appliance.')
                         # Try to switch off appliance
                         power_consumption = self.switch_off(inst)
 
@@ -345,16 +345,15 @@ class PvExcessControl:
 
                 # Prevent the appliance from turning on if it already run its maximum daily runtime
                 if inst.appliance_maximum_run_time > 0 and (inst.daily_run_time / 60) > inst.appliance_maximum_run_time:
-                    log.info(f'{inst.log_prefix} Appliance has already run its maximum daily runtime, not turning on')
+                    log.debug(f'{inst.log_prefix} Appliance has already run its maximum daily runtime, not turning on')
                     continue
 
                 # -------------------------------------------------------------------
                 # Determine if appliance can be turned on or current can be increased
                 if _get_state(inst.appliance_switch) == 'on':
                     # check if current of appliance can be increased
-                    log.debug(f'{log_prefix} Appliance is already switched on.')
                     run_time = inst.daily_run_time + (datetime.datetime.now() - inst.switched_on_time).total_seconds()
-                    log.info(f'{inst.log_prefix} Application has run for {(run_time / 60):.1f} minutes')
+                    log.debug(f'{log_prefix} Appliance is already switched on and has run for {(run_time / 60):.1f} minutes.')
                     if avg_excess_power >= PvExcessControl.min_excess_power and inst.dynamic_current_appliance:
                         # try to increase dynamic current, because excess solar power is available
                         prev_amps = _get_num_state(inst.appliance_current_set_entity, return_on_error=inst.min_current)
@@ -417,7 +416,7 @@ class PvExcessControl:
                     
                     # Check if appliance already run its maximum runtime and if so, turn it off
                     run_time = (inst.daily_run_time + (datetime.datetime.now() - inst.switched_on_time).total_seconds()) / 60
-                    log.info(f'{inst.log_prefix} Device is on, application has run for {run_time:.1f} out of {inst.appliance_maximum_run_time:.1f} minutes')
+                    log.debug(f'{inst.log_prefix} Appliance is on, and it has run for {run_time:.1f} out of maximum {inst.appliance_maximum_run_time:.1f} minutes')
                     if inst.appliance_maximum_run_time > 0 and run_time > inst.appliance_maximum_run_time:
                         log.info(f'{inst.log_prefix} Appliance has already run its maximum daily runtime, turning off')
                         power_consumption = self.switch_off(inst)
@@ -674,7 +673,7 @@ class PvExcessControl:
     def _force_minimum_runtime(self, inst, current_run_time, avg_excess_power):
         """
         Calculates if the appliance should be force turned on in case the remaining solar production forecast is not fully sufficient to run loads and 
-        the appliance for appliance_minimum_run_time, but there is still some excess production
+        the appliance ran for appliance_minimum_run_time, but there is still some excess production
         :param inst:        PVExcesscontrol Class instance
         :return:            True if remaining production is insufficient but there is still some excess power, false otherwise
         """
@@ -706,7 +705,7 @@ class PvExcessControl:
         remaining_usage = time_of_sunset * load_power / 1000
         remaining_power = remaining_forecast - remaining_usage
 
-        log.info(f'{inst.log_prefix} ran for {current_run_time:.1f} min out of {inst.appliance_minimum_run_time:.1f} min. Projected to use {projected_future_power_usage:.3f}kWh out of {remaining_power:.1f}kWh to meet minimum runtime, excess power is {avg_excess_power:.1f}')
+        log.debug(f'{inst.log_prefix} ran for {current_run_time:.1f} min out of {inst.appliance_minimum_run_time:.1f} min and the current total load is {load_power:.3f} Kw. Appliance is projected to use {projected_future_power_usage:.3f}kWh to meet minimum runtime. With current load the remaining solar power is {remaining_power:.1f}kWh')
 
         if projected_future_power_usage >= remaining_power:
             # If we get here then the appliance is expected to use more
@@ -715,6 +714,7 @@ class PvExcessControl:
             # So we want to run if there is any excess power, otherwise we
             # have to run later at night
             if avg_excess_power > 0:
-                return True
+                log.debug(f'{inst.log_prefix} Turning/keeping appliance on to meet minimum runtime as there is some excess power: {avg_excess_power:.3f}kW.')
+                return True          
 
         return False

@@ -225,7 +225,7 @@ blueprint:
           unit_of_measurement: kWh
 
     solar_production_forecast:
-      name: "*Remaining* solar production forecast (Solcast)"
+      name: "*Remaining* solar production forecast (Solcast or Forecast.Solar)"
       description: >
         Sensor which represents the **remaining solar production forecast** for the current day (in kWh). Will be used to ensure the specified *minimum home battery level* is reached at the end of the day.
 
@@ -237,13 +237,21 @@ blueprint:
 
         **[NOTE]**
 
-        - If your solar system is not coupled with a battery, leave this field empty
+        - If your solar system is not coupled with a battery or if you are not enforcing a minimum appliance run time, leave this field empty
       default:
       selector:
         entity:
           domain: sensor
           multiple: false
 
+    time_of_sunset:
+      name: "The time of sunset at the current location "
+      description: "The time of sunset in the current location. You can use `sensor.sun_next_setting`"
+      default:
+      selector:
+        entity:
+          domain: sensor
+          multiple: false
 
     appliance_switch:
       name: "Appliance Entity"
@@ -287,6 +295,41 @@ blueprint:
       default: False
       selector:
         boolean:
+
+    appliance_minimum_run_time:
+      name: "Appliance minimum daily runtime"
+      description: > 
+        Enforces that an appliance runs a minimum time every day. Useful for things such as pool pumps.
+
+        Behavior is as follows: 
+
+        - During the day, if remaining daily solar production forecast says there will be enough power to run the appliance, wait
+        
+        - If remaining solar forecast is not enough to meet minimum runtime, turn on the appliance whenever there is some excess power
+        
+        - If in the evening (20:00), the appliance did not run its minimum daily runtime time, turn it on again 
+
+        **[NOTE]**
+        
+        - For this to work correctly, you must configure the time_of_sunset and solar_production_forecast fields 
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 1440
+          step: 1
+          unit_of_measurement: min
+
+    appliance_maximum_run_time:
+      name: "Appliance maximum daily runtime"
+      description: "Limits the maximum time the appliance should run in a day.\n0 means infinite time. This value must be greater than minimum runtime."
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 1440
+          step: 1
+          unit_of_measurement: min
 
     dynamic_current_appliance:
       name: "Dynamic current control"
@@ -425,4 +468,7 @@ action:
       import_export_power: !input import_export_power
       home_battery_capacity: !input home_battery_capacity
       solar_production_forecast: !input solar_production_forecast
+      time_of_sunset: !input time_of_sunset
       appliance_once_only: !input appliance_once_only
+      appliance_maximum_run_time: !input appliance_maximum_run_time
+      appliance_minimum_run_time: !input appliance_minimum_run_time

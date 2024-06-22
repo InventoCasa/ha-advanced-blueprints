@@ -707,7 +707,7 @@ class PvExcessControl:
 
         log.debug(f'{inst.log_prefix} ran for {current_run_time:.1f} min out of {inst.appliance_minimum_run_time:.1f} min and the current total load is {load_power:.3f} Kw. Appliance is projected to use {projected_future_power_usage:.3f}kWh to meet minimum runtime. With current load the remaining solar power is {remaining_power:.1f}kWh')
 
-        if projected_future_power_usage >= remaining_power:
+        if projected_future_power_usage >= remaining_power and current_run_time < inst.appliance_minimum_run_time:
             # If we get here then the appliance is expected to use more
             # electricity to hit the minimum run time then the solar
             # production for the rest of the day

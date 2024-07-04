@@ -325,27 +325,29 @@ class PvExcessControl:
 
                 elif not (inst.appliance_once_only and inst.switched_on_today):
                     # check if appliance can be switched on
-                    if _get_state(inst.appliance_switch) != 'off':
-                        log.warning(f'{log_prefix} Appliance state (={_get_state(inst.appliance_switch)}) is neither ON nor OFF. '
-                                    f'Assuming OFF state.')
-                    defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
+                    if _get_state(inst.appliance_switch) == 'off':
+                        defined_power = inst.defined_current * PvExcessControl.grid_voltage * inst.phases
 
-                    if avg_excess_power >= defined_power or (inst.appliance_priority > 1000 and avg_excess_power > 0):
-                        log.debug(f'{log_prefix} Average Excess power is high enough to switch on appliance.')
-                        if inst.switch_interval_counter >= inst.appliance_switch_interval:
-                            self.switch_on(inst)
-                            inst.switch_interval_counter = 0
-                            log.info(f'{log_prefix} Switched on appliance.')
-                            # "restart" history by subtracting defined power from each history value within the specified time frame
-                            self._adjust_pwr_history(inst, -defined_power)
-                            task.sleep(1)
-                            if inst.dynamic_current_appliance:
-                                _set_value(inst.appliance_current_set_entity, inst.min_current)
+                        if avg_excess_power >= defined_power or (inst.appliance_priority > 1000 and avg_excess_power > 0):
+                            log.debug(f'{log_prefix} Average Excess power is high enough to switch on appliance.')
+                            if inst.switch_interval_counter >= inst.appliance_switch_interval:
+                                self.switch_on(inst)
+                                inst.switch_interval_counter = 0
+                                log.info(f'{log_prefix} Switched on appliance.')
+                                # "restart" history by subtracting defined power from each history value within the specified time frame
+                                self._adjust_pwr_history(inst, -defined_power)
+                                task.sleep(1)
+                                if inst.dynamic_current_appliance:
+                                    _set_value(inst.appliance_current_set_entity, inst.min_current)
+                            else:
+                                log.debug(f'{log_prefix} Cannot switch on appliance, because appliance switch interval is not reached '
+                                          f'({inst.switch_interval_counter}/{inst.appliance_switch_interval}).')
                         else:
-                            log.debug(f'{log_prefix} Cannot switch on appliance, because appliance switch interval is not reached '
-                                      f'({inst.switch_interval_counter}/{inst.appliance_switch_interval}).')
+                            log.debug(f'{log_prefix} Average Excess power not high enough to switch on appliance.')
                     else:
-                        log.debug(f'{log_prefix} Average Excess power not high enough to switch on appliance.')
+                        log.debug(f'{log_prefix} Appliance state (={_get_state(inst.appliance_switch)}) is neither ON nor OFF. '
+                                    f'Assuming OFF state.')
+
                 # -------------------------------------------------------------------
 
 
@@ -415,7 +417,7 @@ class PvExcessControl:
 
                 else:
                     if _get_state(inst.appliance_switch) != 'off':
-                        log.warning(f'{log_prefix} Appliance state (={_get_state(inst.appliance_switch)}) is neither ON nor OFF. '
+                        log.debug(f'{log_prefix} Appliance state (={_get_state(inst.appliance_switch)}) is neither ON nor OFF. '
                                     f'Assuming OFF state.')
                     # Note: This can misfire right after an appliance has been switched on. Generally no problem.
                     log.debug(f'{log_prefix} Appliance is already switched off.')

@@ -13,7 +13,8 @@ def _get_state(entity_id: str) -> Union[str, None]:
     :return:            State if entity name is valid, else None
     """
     # get entity domain
-    domain = entity_id.split('.')[0]
+    if entity_id is not None:
+        domain = entity_id.split('.')[0]
     try:
         entity_state = state.get(entity_id)
     except Exception as e:

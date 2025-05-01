@@ -99,7 +99,57 @@ def _set_value(entity_id: str, value: Union[int, float, str]) -> bool:
 
 
 def _get_num_state(entity_id: str, return_on_error: Union[float, None] = None) -> Union[float, None]:
-    return _validate_number(_get_state(entity_id), return_on_error)
+    """
+    Reads the state of an entity, parsing numeric values and converting only kilowatts to watts.
+    All other units are returned as-is.
+
+    :param entity_id:        ID of the Home Assistant entity
+    :param return_on_error:  Value to return if reading or conversion fails
+    :return:                 Numeric value in appropriate unit (W for converted kW, or raw number)
+    """
+    raw = _get_state(entity_id)
+    if raw is None:
+        log.debug(f"{entity_id}: raw state is None, returning fallback {return_on_error}")
+        return return_on_error
+
+    # Attempt to read the unit_of_measurement attribute
+    try:
+        hass_state = hass.states.get(entity_id)
+        unit_attr = hass_state.attributes.get('unit_of_measurement', '').strip()
+    except Exception:
+        unit_attr = ''
+        log.debug(f"{entity_id}: failed to read unit_of_measurement attribute, defaulting unit_attr to empty string")
+
+    # Split raw into numeric string and optional suffix
+    parts = str(raw).strip().split()
+    try:
+        value = float(parts[0])
+    except ValueError:
+        log.error(f"{entity_id}: could not parse numeric value from raw='{raw}'")
+        return return_on_error
+
+    # Determine suffix if present
+    suffix = parts[1].lower() if len(parts) > 1 else ''
+    log.debug(f"{entity_id}: raw value={value}, unit_attr='{unit_attr}', suffix='{suffix}'")
+
+    # Initialize numeric_value with raw value
+    numeric_value = value
+
+    # Convert only if unit_attr or suffix indicates kilowatts
+    if unit_attr.lower() == 'kw' or suffix in ('kw', 'kilowatt', 'kilowatts'):
+        numeric_value = value * 1000
+        log.debug(f"{entity_id}: converting from kW to W: {value} kW → {numeric_value} W")
+    else:
+        display_unit = unit_attr or suffix or 'units'
+        log.debug(f"{entity_id}: no conversion, using raw value {numeric_value} {display_unit}")
+
+    # Validate numeric range
+    min_v, max_v = -1_000_000, 1_000_000
+    if not (min_v <= numeric_value <= max_v):
+        log.error(f"{entity_id}: value {numeric_value} out of expected range [{min_v}, {max_v}]")
+        return return_on_error
+
+    return numeric_value
 
 
 def _validate_number(num: Union[float, str], return_on_error: Union[float, None] = None) -> Union[float, None]:
